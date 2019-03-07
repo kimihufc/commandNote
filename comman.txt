@@ -1,0 +1,30 @@
+http://172.23.3.242:8761/eureka/apps/ACCOUNTING-TASK-SERVICE/168-PC:accounting-task-service:8188/status?value=OUT_OF_SERVICE
+服务下线 put请求
+http://172.23.3.242:8761/eureka/apps/ACCOUNTING-TASK-SERVICE/168-PC:accounting-task-service:8188/status?value=UP
+服务上线 post请求
+
+
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+本地服务禁止注册上服务
+
+wireshark 常用过滤规则
+查找目的地址为192.168.101.8的包，ip.dst==192.168.101.8；
+查找源地址为ip.src==1.1.1.1
+tcp.port==80，这条规则是把源端口和目的端口为80的都过滤出来。
+tcp.dstport==80只过滤目的端口为80的
+tcp.srcport==80只过滤源端口为80的包
+http 直接输入协议名即可，如过滤HTTP的协议
+过滤get包，http.request.method=="GET",
+过滤post包，http.request.method=="POST"
+http.request.uri contains “/dll/test.htm?“
+
+
+
+目标机器 ssh-keygen -t rsa
+本机器  ssh-copy-id -i ~/id_rsa.pub root@172.23.60.4
+ du -h --max-depth=1 ./  查看目录大小
+ 
+jmap -histo 4284  > d:/log.txt
+
+
