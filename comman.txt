@@ -25,6 +25,23 @@ http.request.uri contains “/dll/test.htm?“
 本机器  ssh-copy-id -i ~/id_rsa.pub root@172.23.60.4
  du -h --max-depth=1 ./  查看目录大小
  
+ 
 jmap -histo 4284  > d:/log.txt
+jmap -dump:format=b,file=heapdump pid：将内存使用的详细情况输出到文件
+然后使用jhat命令查看该文件：jhat -port 4000 文件名 ，在浏览器中访问http:localhost:4000/
+
+1 top 查找最高进程的pid
+2 top -H -p pid 找到最高线程的xid
+3 printf "%x\n" xid 查找16位的线程名称
+4 jstack pid > jstack.txt  打印线程信息
+5 grep 线程名称  jstack.txt
+
+查询gc情况
+jstat -gc PID 5000(间隔时间，单位为毫秒) 20（打印次数）
+jstat -gcutil PID 5000(间隔时间，单位为毫秒) 20（打印次数）
+
+
+
+
 
 
