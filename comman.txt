@@ -24,6 +24,7 @@ http.request.uri contains “/dll/test.htm?“
 目标机器 ssh-keygen -t rsa
 本机器  ssh-copy-id -i ~/id_rsa.pub root@172.23.60.4
  du -h --max-depth=1 ./  查看目录大小
+ /sbin/iptables -I INPUT -p tcp --dport 80 -j ACCEPT
  
  
 jmap -histo 4284  > d:/log.txt
@@ -39,6 +40,31 @@ jmap -dump:format=b,file=heapdump pid：将内存使用的详细情况输出到�
 查询gc情况
 jstat -gc PID 5000(间隔时间，单位为毫秒) 20（打印次数）
 jstat -gcutil PID 5000(间隔时间，单位为毫秒) 20（打印次数）
+
+watch com.yzf.pangolin.web.portal.controller gainTaskGroup "{params,returnObj}" -x 2
+
+
+
+git操作
+git branch feature-tmp-test
+git push origin feature-tmp-test
+
+回退命令：
+$ git reset --hard HEAD^         回退到上个版本
+$ git reset --hard HEAD~3        回退到前3次提交之前，以此类推，回退到n次提交之前
+$ git reset --hard commit_id     退到/进到 指定commit的sha码
+ 
+强推到远程：
+$ git push origin HEAD --force
+git push -f origin master
+
+方案一
+1.将所要push的内容所在的分支的protected权限关闭
+(1)进入所在项目的settings
+(2)点击进入Protected branches,点击unprotected将master分支的权限改变，即关闭master的protected权限
+方案二
+
+
 
 
 

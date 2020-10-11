@@ -1,0 +1,9 @@
+spring包括
+    framework框架 
+	springboot 
+	springcloud 
+	springdata(封装数据源) 
+	springsecurty oauth2授权机制和jwt认证方式
+	
+	
+	org.springframework.web.context.request.async.DeferredResult; 实现长轮询

@@ -1,0 +1,40 @@
+服务端
+EnableEurekaServer--->
+         spring.factories---->
+		         EurekaServerAutoConfiguration---->
+				   1(EurekaServerConfig server配置文件  EurekaServerBootstrap 配置上下文 EurekaController 业务控制)
+				   2 EurekaServerInitializerConfiguration 初始化上下文 
+
+
+#服务端开启自我保护模式。无论什么情况，服务端都会保持一定数量的服务。避免client与server的网络问题，而出现大量的服务被清除。
+eureka.server.enable-self-preservation=true
+#开启清除无效服务的定时任务，时间间隔。默认1分钟
+eureka.server.eviction-interval-timer-in-ms= 60000
+
+
+/eureka/apps
+1. 由于spring-cloud-starter-eureka的间接依赖，spring-cloud-netflix-eureka-client会出现在classpath中；
+2. 因此spring启动时会扫描到spring-cloud-netflix-eureka-client.jar包中的spring.factories文件；
+3. 如果当前工程使用了EnableDiscoveryClient注解，按照spring.factories中的配置，配置类EurekaDiscoveryClientConfiguration会生效，进而开启服务注册发现功能；
+
+客户端
+EnableEurekaClient
+EnableDiscoveryClient
+EnableDiscoveryClient注解在common包中，通过项目的classpath来决定使用哪种实现，而EnableEurekaClient注解在netflix包中，只会使用eureka这种实现方式；
+所以，使用EnableDiscoverClient，对任何注册中心都适用。而EnableEurekaClient是为eureka服务的
+
+客户端
+EnableEurekaClient
+
+EnableEurekaClient--->spring.factories--->EurekaClientAutoConfiguration----->
+CloudEurekaClient--->DiscoveryClient-->initScheduledTasks---InstanceInfoReplicator--->注册
+
+
+EnableDiscoveryClient
+EnableDiscoveryClient->EurekaDiscoveryClientConfiguration-->EurekaAutoServiceRegistration--->Lifecycle.start--->EurekaServiceRegistry.register
+
+
+DiscoveryClient
+三个定时任务 scheduler  heartbeatExecutor 30  cacheRefreshExecutor 30
+
+

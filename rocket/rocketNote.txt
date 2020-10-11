@@ -1,0 +1,43 @@
+rocketmq
+rocketmq搭建
+1 获取文件
+2 配置jvm  runserver.sh  runbroker.sh  tools.sh
+3 启动 nohup sh bin/mqnamesrv & 
+   nohup sh bin/mqbroker -n xxxx:9876 autoCreateTopicEnable=true -c /usr/local/rocketmq/rocketmq-all-4.4.0-bin-release/conf/broker.conf &
+4 控制台
+https://github.com/apache/rocketmq-externals.git 启动console   
+
+roctetmq 分为namesrv（类比注册中心） brocker(消息处理)  topic(类似渠道) remote(通信 使用netty)
+remote(通信模块 基于netty)
+类图
+     nettyremoteclient/nettyremoteserver ----->nettyabstroct--->     remoteservice
+	 消息分为四段 消息长度（4）+序列化类型以及头部长度（4）+消息头消息+消息主体消息
+	 其中NettyEvent, NettyEncoder（编码）, NettyDecoder（解码）和RemotingCommand（ requestID （使用autoInteger）从0自增 用于区分ResponseFuture ） 
+	 消息发送分为 同步（已异步实现 ResponseFuture ） 异步 以及单向 
+	 
+ 
+namesrv（注册中心 ）
+ 1 服务启动 NettyServerConfig（设置netty的参数）以及NamesrvConfig（服务本身配置）
+ 2 路由消息管理 RouteInfoManager （所有的Topic和Borker信息都保存在RouteInfoManager）
+ 3 心跳检查  BrokerHouseKeepingService 来处理broker是否存活. 如果broker失效, 异常或者关闭, 
+           则将broker从RouteInfoManager路由信息中移除, 同时将与该broker相关的topic信息也一起删除.
+		   
+		  
+消息存储 类比kafka（一个topic对应多个分区）
+rocket采用consumerQueue中只存储很少的数据, 消息主体都是通过CommitLog来进行读写.
+
+
+broker
+生产消息 第一步从nameserver 获取brocker地址 第二步根据获取到的borcker以及topic消息 路由分发到指定的broker
+broker启动 第一步初始化 初始化 netty信息 brocker自身配置 以及 存储信息（CommitLog）
+              topicManager：用于管理broker中存储的所有topic的配置
+              consumerOffsetManager：管理Consumer的消费进度
+              subscriptionGroupManager：用来管理订阅组, 包括订阅权限等
+              messageStore：用于broker层的消息落地存储.
+			第二步启动 定时调度线程30秒向namesrv不断上报自己的信息  
+			
+RocketMQ不会管这个这个文件上的消息是否被全部消费. 默认每个文件的过期时间为72小时. 
+       通过在Broker配置文件中设置fileReservedTime来改变过期时间, 单位为小时			
+
+		  
+		   
