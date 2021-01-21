@@ -42,8 +42,13 @@ jstat -gc PID 5000(间隔时间，单位为毫秒) 20（打印次数）
 jstat -gcutil PID 5000(间隔时间，单位为毫秒) 20（打印次数）
 
 watch com.yzf.pangolin.web.portal.controller gainTaskGroup "{params,returnObj}" -x 2
+wangjian  NF_XbL0LSn2EtHVh
 
 
+admin faQW5GrU7RL7BhoP
+kubectl -n fintax-pre set image deployment/transfer-server-set6 transfer-server=yzf-tcr.tencentcloudcr.com/fintax/transfer-server-service:v1.0.418-master-a1452ad
+kubectl -n [命名空间] set image deployment/[应用名] [容器名]=[镜像名]
+http://gitlab.yzf.net/zhoupingsheng/transfer-yaml.git
 
 git操作
 git branch feature-tmp-test
@@ -66,8 +71,60 @@ git push -f origin master
 
 
 
+mysql 、etc/my。conf
+#basedir = /usr/share/mysql
+datadir = /data/mysql/data/yzf/
+user                  = mysql
+port                  = 5688
+server_id             = 200003
+log-bin=mysql-bin
+character_set_server    = utf8
+relay-log       = /data/mysql/data/5688/relay_bin_logs/relay_bin
+relay-log-purge = 7
+log-slave-updates
+log-bin=/data/mysql/data/5688/bin_logs/mysql-bin
+log_bin_trust_function_creators = 1
+expire-logs-days                = 14
+log-error = /usr/local/mysql/yzf/5688/mysql_error.log
+pid-file  = /usr/local/mysql/yzf/5688/5688.pid
+max_binlog_size                 = 1024M
+binlog_cache_size               = 16M
+federated
+key_buffer_size                 = 32M
+wait_timeout        = 300
+interactive_timeout = 300
+max_allowed_packet             = 64M
+max_connect_errors             = 1000000
+skip_name_resolve
+tmp_table_size                 = 32M
+max_heap_table_size            = 32M
+query_cache_type               = 0
+query_cache_size               = 0
+query_cache_limit              = 4M
+max_connections                = 20000
+thread_cache_size              = 100
+open_files_limit               = 65535
+table_definition_cache         = 4096
+table_open_cache               = 4096
+innodb_buffer_pool_size         = 24G
+innodb_log_file_size            = 512M
+sync_binlog                       = 1
+innodb_flush_log_at_trx_commit  = 1
+innodb_flush_method            = O_DIRECT
+innodb_log_files_in_group      = 2
+tmpdir                   = /data/
+read_buffer_size        = 32M
+join_buffer_size        = 32M
+slow_query_log      = on
+slow_query_log_file = /data/mysql/data/yzf/slowqueries.log
+long_query_time     = 1
+lower_case_table_names=1
+sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+replicate-do-db=yzf_biz
+gtid-mode=on
+enforce-gtid-consistency
 
-
+curl -X POST "http://localhost:8202/addTask" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"areaCode\": \"36\", \"gsId\": 723987284727746560, \"kjnd\": 2020, \"kjqj\": 9, \"qyId\": 789216577715752960, \"source\": \"acountting:normal\", \"taskDetailList\": [ {\"reportId\" : 3600020006} ], \"type\": 26, \"userId\": 0}"
 
 
 
