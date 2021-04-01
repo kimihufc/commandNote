@@ -1,3 +1,89 @@
+1) Reactor 单线程模型；
+接受和io用同一个线程 饭店刚开始起步 只有一个人操作做菜以及接客
+2) Reactor 多线程模型；
+接受 一个线程  io用多个线程  饭店好转了 雇佣多个伙计做菜 
+3) 主从 Reactor 多线程模型
+接受多个线程 io多个线程 饭店规模了 雇佣了多个迎宾 接待客人
+
+客户端引导类是 Bootstrap，只需要一个EventLoopGroup。服务端引导类是 ServerBootstrap，通常需要两个 EventLoopGroup，一个用来接收客户端连接，一个用来处理 I/O 事件（也可以只使用一个 EventLoopGroup，此时其将在两个场景下共用同一个 EventLoopGroup）
+
+            //重用缓冲区
+            serverBootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+            serverBootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+            //自动调整下一次缓冲区建立时分配的空间大小，避免内存的浪费
+            serverBootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, AdaptiveRecvByteBufAllocator.DEFAULT);
+            //当服务器请求处理线程全满时，用于临时存放已完成三次握手的请求的队列的最大长度,默认值50。
+            serverBootstrap.option(ChannelOption.SO_BACKLOG, 1024);
+            //用于启用或关于Nagle算法。如果要求高实时性，有数据发送时就马上发送，就将该选项设置为true关闭Nagle算法；如果要减少发送次数减少网络交互，就设置为false等累积一定大小后再发送。默认为false。
+            serverBootstrap.option(ChannelOption.TCP_NODELAY, true);
+            //是否启用心跳保活机制
+            serverBootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
+            //支持tcp协议
+            //bootstrap.childHandler(new TcpChannelInitializer());
+
+            //支持webSocket协议
+            serverBootstrap.childHandler(new WebSocketChannelInitializer());
+
+channel 类型分为
+五个
+1 NioServerSocketchannel.class  nio处理通道 
+         一个 EventLoop 对应一个线程，一个Channel 绑定一个 EventLoop，而一个EventLoop 可以绑定多个Channel 来实现异步，也就是说一个线程可以处理多个 Channel
+2 epolloServerSocketChannel.class  Epoll—用于 Linux 的本地非阻塞传输
+3 oIOSocketChannel.class  OIO—旧的阻塞 I/O  
+        channel是双向的，既可以读，也可以写。而stream是单向的，OIO中利用 InputStream 来读，OutputStream 来写
+4 LocalChannel.calss  Local —— 用于 JVM 内部通信的 Local 传输
+5 EmbeddedChannel.class  嵌入  使得你可以将一组 ChannelHandler 作为帮助器类嵌入到其他的 ChannelHandler 内部 
+	
+ChannelHandlerContext 有很多的方法，其中一些方法也存在于 Channel 和 ChannelPipeline 本身上，但是有一点重要的不同。如果调用 Channel 或者 ChannelPipeline 上的这些方法，
+它们将沿着整个 ChannelPipeline 进行传播。而调用位于 ChannelHandlerContext上的相同方法，则将从当前所关联的 ChannelHandler 开始，并且只会传播给位于该ChannelPipeline 中的下一个能够处理该事件的 ChannelHandler。因此，
+尽量使用 ChannelHandlerContext 的同名方法来处理逻辑，因为它将产生更短的事件流， 应该尽可能地利用这个特性来获得最大的性能
+
+
+    TCP 传输过程中，客户端发送了两个数据包，而服务端却只收到一个数据包，客户端的两个数据包粘连在一起，称为粘包；
+    TCP 传输过程中，客户端发送了两个数据包，服务端虽然收到了两个数据包，但是两个数据包都是不完整的，或多了数据，或少了数据，称为拆包；
+	1 固定分隔符 delimitbasedFramdecoder
+	2 长度分割符 lineBasedFaramdevcode
+	
+
+Channel：Netty 中传入或传出数据的载体；
+ChannelHandler：Netty 中处理入站和出站数据的应用程序逻辑的容器；
+ChannelPipeline：ChannelHandler链 的容器；
+ChannelHandlerContext：代表了 ChannelHandler 和 ChannelPipeline 之间的关联，每当有ChannelHandler 添加到 ChannelPipeline 中时，都会创建 ChannelHandlerContext；
+ChannelPromise：ChannelPromise是ChannelFuture的一个子类，其定义了一些可写的方法，如setSuccess()和setFailure()， 从而使ChannelFuture不可变。	
+
+ByteBuf 
+ 	ByteBuf通过两个索引（readerIndex、writerIndex）划分为三个区域 分页 读 写 预留
+	有两种方法可以得到 ByteBuf 实例，一种是 ByteBufAllocator （实现了池化，有效的降低了分配和释放内存的开销），
+	                                另一种是 Unpooled （Netty 提供的工具类来创建未池化的ByteBuf 实例）
+	 1、堆缓冲区：最常用的 ByteBuf 模式是将数据存储在 JVM 的堆空间中。 这种模式被称为支撑数组（backing array）， 它能在没有使用池化的情况下提供快速的分配和释放。
+    2、直接缓冲区：将数据驻留在会被垃圾回收的堆之外，直接缓冲区对于网络数据传输是最理想的选择，不过，相对于基于堆的缓冲区，它们的分配和释放都较为昂贵。
+	     另外，如果你的数据包含在一个在堆上分配的缓冲区中， 那么事实上，在通过套接字发送它之前， JVM将会在内部把你的缓冲区复制到一个直接缓冲区中。经验表明，Bytebuf的最佳实践是在IO通信线程的读写缓冲区使用DirectByteBuf，后端业务使用HeapByteBuf。
+    3、复合缓冲区：为多个 ByteBuf 提供一个聚合视图。 在这里你可以根据需要添加或者删除 ByteBuf 实例。
+                               Netty 通过一个 ByteBuf 子类——CompositeByteBuf——实现了这个模式， 它提供了一个将多个缓冲区表示为单个合并缓冲区的虚拟表示。
+                               使用 CompositeByteBuf 的复合缓冲区模式：	
+
+四种网络io模型							   
+1 BIO 阻塞
+2 NIO 当用户线程调用了 read 系统调用，立即返回，不阻塞线程，用户线程需要不断地发起 IO 系统调用轮询数据是否准备好；  类似点完菜 需要不断的问 菜有没有做好
+3 IO 多路复用 类似点完菜 会有服务元通知菜做好了
+4 AIO 异步io 当用户线程调用了 read 系统调用，用户线程立刻就能去做其它的事，用户线程不阻塞
+									
+		
+如果业务的 ChannelHandler 接收不到消息，可能的原因如下：
+业务的解码 ChannelHandler 存在 BUG，导致消息解码失败，没有投递到后端。
+业务发送的是畸形或者错误码流（例如长度错误），导致业务解码 ChannelHandler 无法正确解码出业务消息。
+业务 ChannelHandler 执行了一些耗时或者阻塞操作，导致 Netty 的 NioEventLoop 被挂住，无法读取消息。
+执行业务 ChannelHandler 的线程池队列积压，导致新接收的消息在排队，没有得到及时处理。
+对方确实没有发送消息。
+
+定位策略如下：
+在业务的首个 ChannelHandler 的 channelRead 方法中打断点调试，看是否读取到消息。
+在 ChannelHandler 中添加 LoggingHandler，打印接口日志。
+查看 NioEventLoop 线程状态，看是否发生了阻塞。
+通过 tcpdump 抓包看消息是否发送成功。
+
+
+		
 nio
  buffer 写入 读出 需要flip 用完 clear
   服务端 1创建    Selector selector = Selector.open();

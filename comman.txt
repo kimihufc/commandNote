@@ -36,6 +36,7 @@ jmap -dump:format=b,file=heapdump pid：将内存使用的详细情况输出到�
 3 printf "%x\n" xid 查找16位的线程名称
 4 jstack pid > jstack.txt  打印线程信息
 5 grep 线程名称  jstack.txt
+jmap -dump:format=b,file=文件名 [pid]
 
 查询gc情况
 jstat -gc PID 5000(间隔时间，单位为毫秒) 20（打印次数）
@@ -44,11 +45,17 @@ jstat -gcutil PID 5000(间隔时间，单位为毫秒) 20（打印次数）
 watch com.yzf.pangolin.web.portal.controller gainTaskGroup "{params,returnObj}" -x 2
 wangjian  NF_XbL0LSn2EtHVh
 
-
+redis-cli -h 172.23.0.134 -p 6379 --bigkeys -i 0.01
+•Ubuntu 及其衍生版：apt-get update && apt-get install vim
+•以 Red-Hat 为基础的发行版：yum update && yum install vim
+•openSUSE ：zypper update && zypper install vim
 admin faQW5GrU7RL7BhoP
+kubectl.exe create -f transer.yaml
+kubectl.exe apply -f transer.yaml
+kubectl -n fintax-pre set image deployment/	transfer-server-set9 transfer-server=yzf-tcr.tencentcloudcr.com/fintax/transfer-server-service:v1.0.432-master-faebdf7
+
 kubectl -n fintax-pre set image deployment/transfer-server-set6 transfer-server=yzf-tcr.tencentcloudcr.com/fintax/transfer-server-service:v1.0.418-master-a1452ad
 kubectl -n [命名空间] set image deployment/[应用名] [容器名]=[镜像名]
-http://gitlab.yzf.net/zhoupingsheng/transfer-yaml.git
 
 git操作
 git branch feature-tmp-test
@@ -128,3 +135,4 @@ curl -X POST "http://localhost:8202/addTask" -H "accept: */*" -H "Content-Type: 
 
 
 
+Select count(*)from information_schema.processlist 

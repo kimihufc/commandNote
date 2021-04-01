@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.yzf.hjl.WorkConfig,\
+com.yzf.hjl.WorkGo

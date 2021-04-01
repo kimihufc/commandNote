@@ -1,0 +1,6 @@
+zuul 基于servlet实现  其中分为 pre（） route() post()
+路由转发分为三种 
+1 配置了serverId 走RibbonRoutingFilter  走ribbon请求数据后处理封装返回数据
+2 配置了forward.to 走SendForwardFilter  走原生servlet的dispatch跳转                    
+3 配置了ip 端口 走SimpleHostRoutingFilter 走http请求数据后封装返回数据
+4 如果是返回302 就会本地跳转指定地址 LocationRewriteFilter
