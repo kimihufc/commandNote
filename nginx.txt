@@ -1,0 +1,33 @@
+worker_processes work数量
+worker_rlimit_nofile 更改worker进程的最大打开文件数限
+worker_connections 设置可由一个worker进程同时打开的最大连接数
+gzip on;
+开启Gzip,gzip可以帮助Nginx减少大量的网络传输工作
+gzip on; //开启gzip功能
+　　gzip_min_length 1024; //设置请求资源超过该数值才进行压缩，单位字节
+　　gzip_buffers 16 8k; //设置压缩使用的buffer大小，第一个数字为数量，第二个为每个buffer的大小
+　　gzip_comp_level 6; //设置压缩级别，范围1-9,9压缩级别最高，也最耗费CPU资源
+　　gzip_types text/plain application/x-javascript text/css application/xml image/jpeg image/gif image/png; //指定哪些类型的文件需要压缩
+　　gzip_disable "MSIE 6\."; //IE6浏览器不启用压缩
+keepalive_timeout  给客户端分配keep-alive链接超时时间
+
+
+在Linux操作系统中，一个网络连接也会占用一个文件描述符，连接越多，占用的文件描述符也就越多。如果文件描述符设置的比较小，也会影响我们服务器的性能。
+此时，我们就需要增大服务器文件描述符的数量。
+
+　　例如：fs.file-max = 10240000
+如果用户对于请求的耗时很敏感，我们就需要在TCP套接字上添加tcp_nodelay参数来关闭粘包算法，以便数据包能够立刻发送出去。
+此时，我们也可以设置net.ipv4.tcp_syncookies的参数值为1。
+ipv4调优
+网络连接的创建和回收是非常消耗性能的，我们可以通过关闭空闲的连接、重复利用已经分配的连接资源来优化服务器的性能。
+重复利用已经分配的连接资源大家其实并不陌生，像：线程池、数据库连接池就是复用了线程和数据库连接。
+　　我们可以通过如下参数来关闭服务器的空闲连接和复用已分配的连接资源。
+net.ipv4.tcp_tw_reuse = 1   重新使用
+net.ipv4.tcp_tw_recycle = 1  快速回收
+net.ipv4.tcp_fin_timeout = 30  最后应答时间
+net.ipv4.tcp_keepalive_time=1800
+
+在Linux操作系统中，一个网络连接也会占用一个文件描述符，连接越多，占用的文件描述符也就越多。如果文件描述符设置的比较小，
+也会影响我们服务器的性能。此时，我们就需要增大服务器文件描述符的数量。
+
+　　例如：fs.file-max = 10240000
