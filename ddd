@@ -1,0 +1,28 @@
+1 ddd 领域驱动设计  domain-driven design
+2 核心是 战术和战略
+战术 怎么了解项目自身
+战略 怎么统筹项目
+战术  ENTITY 实体 具有生命周期
+     VALUE OBJECT 值对象 类似枚举 固定 无状态
+     service 服务调用 
+     module 模块
+     
+     AGGREGATE 聚合 （类似高内聚） 聚合根 实则就是ENTITY (简单理解就是对于一个对象的增删改查 所有操作聚集)
+     战术对于对象 怎么生成 可以使用factory 怎么持久化 REPOSITORY 
+     
+ 战略 UBIQUITOUS LANGUAGE 通用语言（统一的 类似行业语言 标准）
+     BOUNDED CONTEXT 上下文 项目自己的通用知识联系
+     CONTEXT MAP 上下文组织图 （打通隔离 ）
+     战略采取模式 1 内核模式（核心区） SHARED Kernel
+                 2 提供商（上下层） CUSTOMER/suppler
+                 3 追随者 （确定领导关系） conformist
+                 4 反腐层 （保护核心不被污染）ANTICORRUPTION LAYER
+                 5 各自维护 （独立分开） seprate way
+                 6 开源  OPEN HOST SERVICE
+                 7 知识库 （建立语言留底） PUBLISHED LANGUAGE
+                 
+    步骤 合并上下文 （将密切的 合并） 去除 各自维护 建立内核  然后才去可持续 最后开源 建立知识库
+    
+    精炼 定位核心领域 确定附属区域  核心人员维护核心领域 留存知识库 标明核心
+     
+     
