@@ -1,0 +1,7 @@
+1 okthhpClient ---Request----RealCall--->Dispetcher(三个队列（等待read 正在执行同步 syncReading 正在执行异步 AsyReading）一个线程池)
+2 支持异步同步 同步excute 异步enqueue(实则通过线程池进行操作)
+3 拦截器（客户自定义 以及自带（桥链接拦截器、缓存拦截器、最终执行CallServer拦截器））
+4 自己封装IO (OKIO) sink(output) source(input)
+5 http1 http2协议 支持隧道（connectTunnel） 默认 （connectSocket）
+6 RealConnect(真正链接) ConnectionPool (连接池) StreamAllocation（流操作）
+7 connectInterptor 链接 CallServerInterPer 真实链接
