@@ -133,6 +133,121 @@ enforce-gtid-consistency
 
 curl -X POST "http://localhost:8202/addTask" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"areaCode\": \"36\", \"gsId\": 723987284727746560, \"kjnd\": 2020, \"kjqj\": 9, \"qyId\": 789216577715752960, \"source\": \"acountting:normal\", \"taskDetailList\": [ {\"reportId\" : 3600020006} ], \"type\": 26, \"userId\": 0}"
 
+查看数据库线程连接
+show global status like 'Thread%';
+数据库连接数
+show variables like 'max_connections';
+数据库sql长度大小
+max_allowed_packet 
+
+
+
 
 
 Select count(*)from information_schema.processlist 
+https://github.com/danfengcao/binlog2sql.git
+
+核心 SHOW  PROCESSLIST 找到繁忙的 kill id
+--查看连接信息以及连接执行的命令
+SHOW  PROCESSLIST
+
+--查看当前被锁住的表
+show OPEN TABLES where In_use > 0;
+
+--开启会话级别的profile
+SET profiling=1
+--查看所有的数据库操作执行过程
+SHOW PROFILES
+--查询单条语句profile
+SHOW PROFILE FOR QUERY 1
+
+--查看整个数据库服务的线程数
+show global status like 'Thread%';
+--刷新会话级别的计数器
+FLUSH STATUS
+--查看当前会话的状态信息
+SHOW STATUS
+
+--查看所表参数信息
+SHOW  TABLE STATUS
+
+--查询持续时间大于一秒的事务
+SELECT * FROM information_schema.innodb_trx WHERE TIME_TO_SEC(timediff(now(), trx_started)) > 1
+
+
+
+  1  2021-04-14 15:03:48
+    2  2021-04-14 15:03:51 cd /lost+found/
+    3  2021-04-14 15:04:10 docker ps | grep account
+    4  2021-04-14 15:04:33 cd /var/lib/kubelet/pods
+    5  2021-04-14 15:04:50 cd fe0a86f4-05b1-4d12-92c2-1daa4035cf7f/
+    6  2021-04-14 15:04:52 ls
+    7  2021-04-14 15:04:59 cd volumes/kubernetes.io~empty-dir/
+    8  2021-04-14 15:05:04 ls
+    9  2021-04-14 15:05:12 cd logs/
+   10  2021-04-14 15:05:14 ls
+   11  2021-04-14 15:06:29 docker ps|grep qplfg
+   12  2021-04-14 15:07:14 history
+   
+   mysql 安装 https://blog.csdn.net/weixin_38003389/article/details/90696337
+   1下载 wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-linux-glibc2.12-x86_64.tar.gz
+   2 创建用户 groupadd mysql  useradd -r -g mysql mysql 
+   3 创建目录 mkdir -p /data/mysql
+   4 授权 chown mysql:mysql -R /data/mysql
+   5 配置/etc/my.cnf
+   port=5688
+bind-address=0.0.0.0
+max_connections = 2000
+server_id = 1
+log_bin_trust_function_creators = 1
+basedir=/usr/local/mysql5-7
+user=mysql
+datadir=/data/mysql
+socket=/tmp/mysql.sock
+log-error=/data/mysql/mysql.err
+pid-file=/data/mysql/mysql.pid
+character_set_server=utf8mb4
+symbolic-links=0
+ 6 初始化 cd /usr/local/mysql-5.7.26/bin/
+            ./mysqld --defaults-file=/etc/my.cnf --basedir=/usr/local/mysql-5.7.26/ --datadir=/data/mysql/ --user=mysql --initialize
+   7 获取密码 vim /data/mysql/mysql.err 取最后面的
+   8 先看cd /etc/init.d 有没有mysqld 没有创建一下
+      ln -s   /usr/local/mysql5-7/support-files/mysql.server mysqld
+   启动mysql service mysqld start 
+   9 修改密码 cd /usr/local/mysql-5.7.26/bin
+   mysql -u root -p
+   SET PASSWORD = PASSWORD('123456');
+   grant all privileges on *.* to 'root'@'%' identified by '123456';
+   flush privileges;
+   
+   
+   mysql 主从配置https://www.cnblogs.com/gl-developer/p/6170423.html
+   1 主库操作
+      /etc/my.cnf 添加配置
+	  log-bin=mysql-bin  
+	  server-id 需要配置不一样 和从库不一样
+	2 授权 
+mysql> CREATE USER 'repl'@'123.57.44.85' IDENTIFIED BY 'slavepass';#创建用户
+mysql> GRANT REPLICATION SLAVE ON *.* TO 'repl'@'123.57.44.85';#分配权限
+mysql>flush privileges;   #刷新权限	
+   3SHOW MASTER STATUS; 取一下file 和 postion
+   
+   4从库操作
+     编辑/etc/my.cnf server-id=2 #设置server-id，必须唯一
+   5 mysq> CHANGE MASTER TO
+    ->     MASTER_HOST='182.92.172.80', (主库ip)
+    ->     MASTER_USER='rep1', 
+    ->     MASTER_PASSWORD='slavepass',
+    ->     MASTER_LOG_FILE='mysql-bin.000003', （主库文件）
+    ->     MASTER_LOG_POS=73; （主库地址）
+	6 start slave; 开启 （stop slave; 关闭 重新设置主从 reset slave all;）
+	7 查看状态 show slave status\G; 主要看  Slave_IO_Running和Slave_SQL_Running
+	# 不同步哪些数据库  
+    binlog-ignore-db = mysql  
+    binlog-ignore-db = test  
+    binlog-ignore-db = information_schema  
+    # 只同步哪些数据库，除此之外，其他不同步  
+    binlog-do-db = game 
+   
+
+   
