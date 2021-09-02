@@ -1,0 +1,58 @@
+github 地址https://github.com/alibaba/DataX
+job目录配置任务
+bin目录启动
+log目录日志
+cd /root/softwore/datax/bin/
+ ./datax.py ../job/zbzjob.json
+{
+    "job":{
+        "setting":{
+            "speed":{
+                "channel":1
+            }
+        },
+        "content":[
+            {
+                "reader":{
+                    "name":"mysqlreader",//名称不能修改 这个根据数据源不同变化
+                    "parameter":{
+                        "username":"root",
+                        "password":"root123456",
+                                                "column":[
+                            "*"
+                        ],
+                        "connection":[
+                            {
+                                "table":[
+                                    "rpt_zbz20192"
+                                ],
+                                "jdbcUrl":[
+                                    "jdbc:mysql://172.23.0.133:3306/report"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                "writer":{
+                    "name":"mysqlwriter",//名称不能修改 这个根据数据源不同变化
+                    "parameter":{
+                        "writeMode": "insert",//按照模块变动
+                        "username":"root",
+                        "password":"root123456",
+                        "column":[
+                            "*"
+                        ],
+                        "connection":[
+                            {
+                                "table":[
+                                    "rpt_zbz20192"
+                                ],
+                                "jdbcUrl":"jdbc:mysql://172.23.60.12:5688/report"//写的数据源不能变 只能唯一
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
