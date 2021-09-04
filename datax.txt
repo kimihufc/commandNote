@@ -24,10 +24,10 @@ cd /root/softwore/datax/bin/
                         "connection":[
                             {
                                 "table":[
-                                    "rpt_zbz20192"
+                                    "rpt_zbz20192"//可以设置多个表 
                                 ],
                                 "jdbcUrl":[
-                                    "jdbc:mysql://172.23.0.133:3306/report"
+                                    "jdbc:mysql://172.23.0.133:3306/report"//可以设置多个数据源 但是前提数据源的用户名和密码都必须一样
                                 ]
                             }
                         ]
