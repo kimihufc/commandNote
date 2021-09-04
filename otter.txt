@@ -1,3 +1,4 @@
+文档地址 https://shimo.im/docs/ywGxhHYcWhk8rwrH/read
 1 按照mangage-node关系通过zk协调 原理是基于cannal伪装从库 然后进行数据迁移 node已经包装好了cannal
  git地址 https://github.com/alibaba/otter
  部署manage 
