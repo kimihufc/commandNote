@@ -1,0 +1,135 @@
+1 按照mangage-node关系通过zk协调 原理是基于cannal伪装从库 然后进行数据迁移 node已经包装好了cannal
+ git地址 https://github.com/alibaba/otter
+ 部署manage 
+ 部署node
+ 初始化sql
+ 说明：该脚本为双A机房数据库同步的初始化SQL，如无该需求请忽略之，注意修改密码   
+   /*
+       供 otter 使用， otter 需要对 retl.* 的读写权限，以及对业务表的读写权限
+       1. 创建database retl
+    */
+          CREATE DATABASE retl;
+
+        /* 2. 用户授权 给同步用户授权 */
+       CREATE USER retl@'%' IDENTIFIED BY 'retl';
+       GRANT USAGE ON *.* TO `retl`@'%';
+       GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO `retl`@'%';
+       GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON `retl`.* TO `retl`@'%';
+        /* 业务表授权，这里可以限定只授权同步业务的表 */
+       GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO `retl`@'%';  
+
+       /* 3. 创建系统表 */
+       USE retl;
+       DROP TABLE IF EXISTS retl.retl_buffer;
+       DROP TABLE IF EXISTS retl.retl_mark;
+       DROP TABLE IF EXISTS retl.xdual;
+        
+        CREATE TABLE retl_buffer
+        (	
+        	ID BIGINT(20) AUTO_INCREMENT,
+        	TABLE_ID INT(11) NOT NULL,
+        	FULL_NAME varchar(512),
+        	TYPE CHAR(1) NOT NULL,
+        	PK_DATA VARCHAR(256) NOT NULL,
+        	GMT_CREATE TIMESTAMP NOT NULL,
+        	GMT_MODIFIED TIMESTAMP NOT NULL,
+        	CONSTRAINT RETL_BUFFER_ID PRIMARY KEY (ID) 
+        )  ENGINE=InnoDB DEFAULT CHARSET=utf8;
+        
+        CREATE TABLE retl_mark
+        (	
+        	ID BIGINT AUTO_INCREMENT,
+        	CHANNEL_ID INT(11),
+        	CHANNEL_INFO varchar(128),
+        	CONSTRAINT RETL_MARK_ID PRIMARY KEY (ID) 
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+        
+        CREATE TABLE xdual (
+          ID BIGINT(20) NOT NULL AUTO_INCREMENT,
+          X timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (ID)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+        
+        /* 4. 插入初始化数据 */
+        INSERT INTO retl.xdual(id, x) VALUES (1,now()) ON DUPLICATE KEY UPDATE x = now();
+2 开始一个迁移
+  基础配置
+  1 配置cannal配置（配置源库）（主要配置数据库地址 账户密码）（位置点可以不配置 默认是当前点 也可以配置历史点（全量同步的一种方式））
+  2 配置数据库配置（目标库和源库都要配置）（主要配置数据库的地址 账户密码）
+  3 配置数据库表（要迁移的表 可以正则） 主要是 schema_name table_name 以及数据源（这个时候就要选择上面的数据库配置）
+  同步配置
+  1 新增channel 配置一个channel
+  2 进入配置的channel 新增pipeline 配置选择canal(基础配置的第一步) 以及使用那些node运行
+  3 进入配置好的pipeline 新增映射关系 配置源数据表和目标数据库表（基础配置的第三步） 如果涉及到分表 需要配置EventProcessor 选择source 配置一下内容
+  
+  package com.alibaba.otter.node.extend.processor;
+
+import com.alibaba.otter.shared.etl.model.EventColumn;
+import com.alibaba.otter.shared.etl.model.EventData;
+import org.apache.commons.collections.CollectionUtils;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+/**
+ * 分片通用处理器
+ */
+public class AaskDataExtraEventProcessor extends AbstractEventProcessor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AaskDataExtraEventProcessor.class);
+    private static final String ShardColumn = "qyid";
+
+    public boolean process(EventData eventData) {
+        AtomicBoolean process = new AtomicBoolean(true); // 是否迁移该条记录
+//        EventColumn column = getColumn(eventData, ShardColumn);
+//        Long orderNo = Long.valueOf(column.getColumnValue());
+//        Long schemaSuffix = ((orderNo >> 22)) % 3;
+//        if (schemaSuffix != 2) {
+//            process.set(false);
+//            return process.get();
+//        }
+//        column.setUpdate(false);
+//        eventData.getKeys().add(0, column);
+//        eventData.getColumns().remove(column);
+//        if (CollectionUtils.isNotEmpty(eventData.getOldKeys())) {
+//            eventData.getOldKeys().add(0, column);
+//        }
+//        eventData.setSchemaName("ms");
+//        eventData.setTableName("tab_order");
+//        System.out.println("开始库名"+eventData.getSchemaName()+"库名开始前缀"+schemaSuffix);
+//        String schemaName = eventData.getSchemaName() + schemaSuffix;
+//        eventData.setSchemaName(schemaName);
+//        System.out.println("开始表名"+eventData.getTableName()+"表名开始前缀"+(((orderNo >> 22)) % 2));
+//        String tableNameb = eventData.getTableName() + (((orderNo >> 22)) % 2);
+//        eventData.setTableName(tableNameb);
+//        System.out.println("后来库名" + eventData.getSchemaName() + "后来表名" + eventData.getTableName());
+        eventData.getColumns().stream().filter(c -> c.getColumnName().equalsIgnoreCase(ShardColumn)).findAny().ifPresent(c -> {
+            Long qyid = Long.valueOf(c.getColumnValue());
+            Long schemaSuffix = (qyid>>22) % 2;
+            if (schemaSuffix != 0) {
+                process.set(false);
+                return;
+            }
+            c.setUpdate(false);
+            eventData.getKeys().add(0, c);
+            eventData.getColumns().remove(c);
+
+            if (CollectionUtils.isNotEmpty(eventData.getOldKeys())) {
+                eventData.getOldKeys().add(0, c);
+            }
+            String schemaName = eventData.getSchemaName() +"_"+ schemaSuffix;
+            eventData.setSchemaName(schemaName);
+            String tableNameb = eventData.getTableName() + "_"+(((qyid>>22)>>1)%16);
+            eventData.setTableName(tableNameb);
+            LOGGER.info("后来库名" + eventData.getSchemaName() + "，后来表名" + eventData.getTableName());
+        });
+        return process.get();
+    }
+}
+  
+  
+ 全量迁移 （源库执行）（并新建上面的初始化sql）
+ truncate table retl.retl_buffer;insert into retl.retl_buffer(ID,TABLE_ID, FULL_NAME,TYPE,PK_DATA,GMT_CREATE,GMT_MODIFIED) (select null,0,'fintax_task.task_batch','I',id,now(),now() from fintax_task.task_batch);
+  
+ 
