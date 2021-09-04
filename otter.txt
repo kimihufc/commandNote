@@ -1,4 +1,5 @@
 文档地址 https://shimo.im/docs/ywGxhHYcWhk8rwrH/read
+otter原本定位是同步具体数据 如果是分库分表 建议源库-》otter-》shardingjdbcproxy-->目标库
 1 按照mangage-node关系通过zk协调 原理是基于cannal伪装从库 然后进行数据迁移 node已经包装好了cannal
  git地址 https://github.com/alibaba/otter
  部署manage 
