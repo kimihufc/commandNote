@@ -239,7 +239,7 @@ mysql>flush privileges;   #刷新权限
     ->     MASTER_USER='rep1', 
     ->     MASTER_PASSWORD='slavepass',
     ->     MASTER_LOG_FILE='mysql-bin.000003', （主库文件）
-	MASTER_PORT =5688,
+	->     MASTER_PORT =5688,
     ->     MASTER_LOG_POS=73; （主库地址）
 	6 start slave; 开启 （stop slave; 关闭 重新设置主从 reset slave all;）
 	7 查看状态 show slave status\G; 主要看  Slave_IO_Running和Slave_SQL_Running
@@ -250,10 +250,23 @@ mysql>flush privileges;   #刷新权限
     # 只同步哪些数据库，除此之外，其他不同步  
     binlog-do-db = game 
    
-   
+   https://www.cnblogs.com/xuanzhi201111/p/5151666.html
    恢复数据
   1 全量恢复点数据  mysqldump -uroot -p123456  --single-transaction --set-gtid-purged=OFF --master-data=2 -A > all_database.sql
                 拿dump数据恢复  mysql -uroot -p123456 < all_database.sql  
   2 增量恢复点数据 /usr/local/mysql5-7/bin/mysqlbinlog --start-position=6529  --stop-position=6799  mysql-bin.000001|/usr/local/mysql5-7/bin/mysql -uroot -p123456
+  2 增量恢复点数据 /usr/local/mysql5-7/bin/mysqlbinlog --start-position=1585910  --stop-position=1585995  mysql-bin.000317|/usr/local/mysql5-7/bin/mysql -uroot -p123456
 
    
+   
+   
+vi /etc/sysctl.conf  
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_tw_recycle = 1
+net.ipv4.tcp_fin_timeout = 30
+生效命令 sysctl -p
+
+
+LR出现不平衡 先补全子树 然后进行左旋
+RL出现不平衡 先补全子树 然后进行右旋
