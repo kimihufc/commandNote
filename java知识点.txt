@@ -10,3 +10,928 @@
 9 数据结构加算法
 10 中台 微服务概念
 11 大数据
+类装载过程
+1加载（获取文件）
+2连接 （验证（文件对不对）-->准备（空间准备）-->解析（方法 属性））
+3初始化（static 父类）
+初始化完成时间（1创建对象 2执行main方法 3调用静态方法/静态参数 4 class.forName init为true）
+
+
+注解class变现 @LDAY/AnnotationTest
+注解编译器进行操作
+定义注解处理器需要继承一个 AbstractProcessor，并重写 Process 方法，当程序编译时扫描到对应的注
+解 Javac 工具会自动回调 Process 方法。
+
+单一 开放封闭（对扩展开放，对修改封闭） 替换 接口隔离 依赖倒置（层次分清）
+
+设计模式分类
+创建对象  （单例 工厂 原型等）
+对象结构  （组合 装饰 代理 适配器 外观 享元等）
+对象行为   （策略 模板 命令 责任链 迭代 中介 观察者等）
+模板模式（java 的AQS spring的jdbcTemplate）
+策略模式 （spring的resource 以及代理（jdk还是cglib））
+委派模式（spring的DispatcherServlet java的线程池）
+装饰模式（spring的beanDefintionDecotator）
+事件模式（spring的ApplicationEvent）
+
+jvm内存区域 方法区 堆 （共有） 虚拟机栈 本地方法栈 程序计数器（私有）
+
+
+
+seata实现分布式事务是基于四种模式：AT模式（对代码无浸入 但是支持语句有限）、MT模式（代码量大）、XA模式（并发低） Saga模式（分段事务 链性提交 逆行回滚）
+AT 基于sql修改推算原生数据 然后进行提交还是回滚
+MT TCC没事 try commit提交 collback 回滚
+XA 两阶段提交 1预提交 2根据预提交的结果 回滚还是提交
+
+XA 原生
+1 创建XAConnection 
+2 有XAConnection获取XAResource 
+3新建Xid （全局id 单个id 以及formatId） 
+4具体操作（     xaResource1.start(xid1,XAResource.TMNOFLAGS);
+        test1.prepareStatement("UPDATE user_account SET account_balance = account_balance +100 WHERE account_no = '1001'").execute();
+        xaResource1.end(xid1,XAResource.TMSUCCESS);）
+5 一阶段获取执行结果 xaResource1.prepare(xid1)
+6二阶段 提交还是回退
+    if(prepare1==XAResource.XA_OK&&prepare2==XAResource.XA_OK){
+            xaResource1.commit(xid1,Boolean.FALSE);
+            xaResource2.commit(xid2,Boolean.FALSE);
+        }else {
+            xaResource1.rollback(xid1);
+            xaResource2.rollback(xid2);
+        }
+		
+整合springboot 创建代理 AtomikosDataSourceBean
+        MysqlXADataSource mysqlXADataSource = new MysqlXADataSource();
+        mysqlXADataSource.setURL(DBConfig1.url);
+        mysqlXADataSource.setUser(DBConfig1.username);
+        mysqlXADataSource.setPassword(DBConfig1.password);
+        AtomikosDataSourceBean xaDataSource = new AtomikosDataSourceBean();
+        xaDataSource.setXaDataSource(mysqlXADataSource);
+        xaDataSource.setUniqueResourceName("test1");		
+
+seata 分布式事务 使用GlobalLock GlobalTransactional 使用代理模式 SeataAutoDataSourceProxyCreator 处理代理 GlobalTransactionalInterceptor 具体操作
+GlobalTransactionalInterceptor 创建全局事务 global_table （tcc 都是操作xid netty远程调用修改 然后由事务管理器触发 cc）  具体参与者branch_table
+核心分为 TM（事务管理器 负责向TC发送状态） RM（资源管理器 DefaultRMHandler 通过netty 获取TC传过来的 cc具体操作 也是利用缓存对象）
+seata-server  TC 事务控制器（springboot项目）存储（db file redis）Server 启动netty server 具体处理handler DefaultCoordinator
+AbstractCore 具体操作server发送消息
+LocalTCC 注解拦截 然后向TC注册参与者 TccActionInterceptor 具体注册参与者表（AbstractResourceManager具体netty调用））
+
+tcc try commit collback
+tac (a==auto sql 当用户使用TAC模式的时候，用户必须使用关系型数据库来进行业务操作，框架会自动生成回滚SQL, 
+  当业务异常的时候，会执行回滚SQL来达到事务的一致性)
+hmily（支持TAC TCC XA） 基于切面 HmilyTCC （方法必须幂等）（有双C  confirmMethod 和 cancelMethod）  StarterHmilyTccTransactionHandler
+ 开启处理 使用线程池 disruptorProviderManage 处理双C(提交还是回退) HmilyTccTransactionExecutor 具体 tcc操作
+ 具体操作 1 建库 加表（cancel_log confirm_log try_log） 2引包 hmily-spring-boot-starter-dubbo/springcloud 3编写 双c代码
+
+HmilyBootstrap start  加载配置 spi操作 初始化数据中心以及采用序列化
+触发拦截 AbstractHmilyTransactionAspect
+HmilyGlobalInterceptor 基于策略模式 （tcc tac xa）和根据上下文存在（判断是发起者 还是参与者 还是本地）（所有具体策略通过spi初始化）
+    TCC模式 发起者  StarterHmilyTccTransactionHandler  handleTransaction 进行全局的try comfirm cancel （因为参与者只会有本地 也就是本地触发主事务tcc）
+	        参与者  ParticipantHmilyTccTransactionHandler HmilyTransactionContext 根据上下文的 tcc状态处理事务操作tcc具体步骤
+			事务全局上下文通过 rpc拦截处理 DubboHmilyTransactionFilter（dubbo） HmilyFeignInterceptor(springcloude)
+Hmil注释 
+一 起传递全局上下文 
+RpcMediator.getInstance().transmit(RpcContext.getContext()::setAttachment, context);
+二 起注册参与者
+HmilyTransactionHolder.getInstance().registerStarterParticipant(hmilyParticipant);
+
+被调用放获取上下文
+DubboParameterLoader   RpcContext.getContext()（原生dubbo）
+SpringCloudParameterLoader RequestContextHolder.currentRequestAttributes() (原生spring)
+	 
+	 
+自动创建 hamily表数据 (注册中心支持 redis(hash存储 序列化全部原生的getbytes()) file mysql mongodb)
+ MysqlRepository   extends AbstractHmilyDatabase(模板模式 sql已经写死) implements HmilyRepository（spi）
+      hmily_lock 全局事务lock表
+      hmily_participant_undo undo记录 用在 tac(try auto cancel)             
+      hmily_transaction_global 发起者
+	  hmily_transaction_participant 参与者
+	  
+HmilyTransactionSelfRecoveryScheduled 定时任务补偿 初始30秒 后每60秒更新一次
+	  
+TAC  主要是将try commit合并 只有两个操作· 一个 提交 一个回滚 
+hmily通过对try进行反生成undo(生成基于p6spy 拦截事件 判断是不是参与者 是的话就反推undosql) sql 具体操作AbstractHmilySQLComputeEngine 处理insert update delete
+	  
+ 
+空回滚：Try未执行，Canal执行了
+
+出现原因：
+try网络超时(丢包)
+分布式事物回滚，触发Canal
+未收到try，直接收到Canal
+解决方案：
+关键就是要识别出这个空回滚。思路很简单就是需要知道一阶段是否执行，如果执行了，那就是正常回滚；如果没执行，那就是空回滚。因此，需要一张额外的事务控制表，其中有分布式事务 ID 和分支事务 ID，第一阶段 Try 方法里会插入一条记录，表示一阶段执行了。Cancel 接口里读取该记录，如果该记录存在，则正常回滚；如果该记录不存在，则是空回滚。
+幂等：对于同一个分布式事务的同一个分支事务，重复去调用该分支事务的第二阶段接口，因此，要求 TCC 的二阶段 Confirm 和 Cancel 接口保证幂等，不会重复使用或者释放资源。如果幂等控制没有做好，很有可能导致资损等严重问题。
+
+出现原因：
+提交或回滚是一次 TC 到参与者的网络调用，网络故障、参与者宕机等都有可能造成参与者 TCC 资源实际执行了二阶段防范，但是 TC 没有收到返回结果的情况，这时，TC 就会重复调用，直至调用成功，整个分布式事务结束。
+解决方案：
+一个简单的思路就是记录每个分支事务的执行状态。在执行前状态，如果已执行，那就不再执行；否则，正常执行。前面在讲空回滚的时候，已经有一张事务控制表了，事务控制表的每条记录关联一个分支事务，那我们完全可以在这张事务控制表上加一个状态字段，用来记录每个分支事务的执行状态。
+防悬挂：悬挂就是对于一个分布式事务，其二阶段 Cancel 接口比 Try 接口先执行。因为允许空回滚的原因，Cancel 接口认为 Try 接口没执行，空回滚直接返回成功，对于 Seata 框架来说，认为分布式事务的二阶段接口已经执行成功，整个分布式事务就结束了。但是这之后 Try 方法才真正开始执行，预留业务资源，前面提到事务并发控制的业务加锁，对于一个 Try 方法预留的业务资源，只有该分布式事务才能使用，然而 Seata 框架认为该分布式事务已经结束，也就是说，当出现这种情况时，该分布式事务第一阶段预留的业务资源就再也没有人能够处理了，对于这种情况，我们就称为悬挂，即业务资源预留后没法继续处理。
+
+出现的原因：
+在 RPC 调用时，先注册分支事务，再执行 RPC 调用，如果此时 RPC 调用的网络发生拥堵，通常 RPC 调用是有超时时间的，RPC 超时以后，发起方就会通知 TC 回滚该分布式事务，可能回滚完成后，RPC 请求才到达参与者，真正执行，从而造成悬挂。
+解决方案：
+根据悬挂出现的条件先来分析下，悬挂是指二阶段 Cancel 执行完后，一阶段才执行。也就是说，为了避免悬挂，如果二阶段执行完成，那一阶段就不能再继续执行。因此，当一阶段执行时，需要先检查二阶段是否已经执行完成，如果已经执行，则一阶段不再执行；否则可以正常执行。那怎么检查二阶段是否已经执行呢？大家是否想到了刚才解决空回滚和幂等时用到的事务控制表，可以在二阶段执行时插入一条事务控制记录，状态为已回滚，这样当一阶段执行时，先读取该记录，如果记录存在，就认为二阶段已经执行；否则二阶段没执行。
+ 
+ 幻读：在同一事务中，相同条件下，两次查询出来的 记录数 不一样；
+不可重复读：在同一事务中，相同条件下，两次查询出来的 数据 不一样；
+
+
+请求 --》内核态处理（操作系统操作）--》用户态处理（程序操作）
+nio
+缓冲区（Buffer）、选择器（Selector）和通道（Channel）
+position：指定下一个将要被写入或者读取的元素索引，它的值由get()/put()方法自动更新，在新创建
+一个Buffer对象时，position被初始化为0。
+limit：指定还有多少数据需要取出（在从缓冲区写入通道时），或者还有多少空间可以放入数据（在从
+通道读入缓冲区时）。
+capacity：指定了可以存储在缓冲区中的最大数据容量
+
+单线程 接受处理一个线程池搞定
+多线程 处理多线程处理
+主从 接受一个reactoer线程池 处理（read send dealData）一个reactor处理
+
+Channel
+管道，其是对 Socket 的封装，其包含了一组 API，大大简化了直接与 Socket 进行操作的
+复杂性。
+EventLoopGroup
+EventLoopGroup 是一个 EventLoop 池，包含很多的 EventLoop。
+Netty 为每个 Channel 分配了一个 EventLoop，用于处理用户连接请求、对用户请求的处 理等所有事
+件。EventLoop 本身只是一个线程驱动，在其生命周期内只会绑定一个线程，让 该线程处理一个
+Channel 的所有 IO 事件。
+一个 Channel 一旦与一个 EventLoop 相绑定，那么在 Channel 的整个生命周期内是不能 改变的。一
+个 EventLoop 可以与多个 Channel 绑定。即 Channel 与 EventLoop 的关系是 n:1， 而 EventLoop 与
+线程的关系是 1:1。
+ServerBootStrap
+用于配置整个 Netty 代码，将各个组件关联起来。服务端使用的是 ServerBootStrap，而
+客户端使用的是则 BootStrap。
+ChannelHandler 与 ChannelPipeline
+ChannelHandler 是对 Channel 中数据的处理器，这些处理器可以是系统本身定义好的编 解码器，也
+可以是用户自定义的。这些处理器会被统一添加到一个 ChannelPipeline 的对象中， 然后按照添加的
+顺序对 Channel 中的数据进行依次处理。
+ChannelFuture
+Netty 中所有的 I/O 操作都是异步的，即操作不会立即得到返回结果，所以 Netty 中定义 了一个
+ChannelFuture 对象作为这个异步操作的“代言人”，表示异步操作本身。如果想获取 到该异步操作的返
+回值，可以通过该异步操作对象的 addListener()方法为该异步操作添加监听器，为其注册回调:当结果
+出来后马上调用执行。
+
+BootStrap 里组装了哪些组件？各自分别用来做什么？
+  Channel 处理socket / EventLoopGroup EventLoop池 / ChannelHandler具体处理channel / ChannelPipeline hander链
+Channel 和 Eventloop 之间的关系是什么？
+  Channel 分配了一个 EventLoop，用于处理用户连接请求、对用户请求的处 理等所有事件
+Eventloop 怎么理解？底层原理是什么？
+  EventLoopGroup 类似线程池  Selector
+Pipeline 设计模式在 Netty 里的应用？
+  链式处理 Channel是通讯的载体，而ChannelHandler负责Channel中的逻辑处理
+   ChannelPipeline是什么呢？我觉得可以理解为ChannelHandler的容器：
+   一个Channel包含一个ChannelPipeline，所有ChannelHandler都会注册到ChannelPipeline中，并按顺序组织起来 
+   ChannelPipeline包含两条线路：Upstream和Downstream。
+    Upstream对应上行，接收到的消息、被动的状态改变，都属于Upstream。
+	Downstream则对应下行，发送的消息、主动的状态改变，都属于Downstream  
+  DefaultChannelHandlerContext 	上下文 ”head”和”tail”两个引用，分别指向链表的头和尾
+
+ChannelBuffer中的readerIndex和writerIndex 读写流具体操作
+对于 Pipeline 做了哪些优化？
+Promise 是用来干什么的？
+  Promise是可写的 Future, Future自身并没有写操作相关的接口, Netty通过 Promise对 Future进行扩展,用于设置IO操作的结果
+  
+  
+tomcat
+EndPoint 是通信端点，即通信监听的接口，是具体的 Socket 接收和发送处理器，是对传输层的抽象，
+因此 EndPoint 是用来实现 TCP/IP 协议的
+如果说 EndPoint 是用来实现 TCP/IP 协议的，那么 Processor 用来实现 HTTP 协议，Processor 接收来
+自 EndPoint 的 Socket，读取字节流解析成 Tomcat Request 和 Response 对象，并通过 Adapter 将
+其提交到容器处理，Processor 是对应用层协议的抽象
+1、根据协议和端口号选定 Service 和 Engine。（一个service对应一个engine） 2、根据域名选定Host
+Mapper组件通过URL中的域名user.naixue.com:去查找相应的容器Host1
+3、根据 URL 路径找到 Context 组件。例如：/order 我们查找到Context4这个容器
+5、根据路径找到最后的Wrapper(Servlet)
+Context 确定后，Mapper 再根据 web.xml 中配置的 Servlet 映射路径来找到具体的 Wrapper 和
+Servlet。
+此时我们知道 Tomcat 如何通过一层一层的父子容器找到某个 Servlet 来处理请求，然而他们怎样实现
+engine-> host->wapper的过程
+答案是：Pipeline-Value管道
+Pipeline-Valve 是责任链模式，责任链模式是指在一个请求处理的过程中有很多处理者依次对请求进行
+处理，每个处理者负责做自己相应的处理，处理完之后将再调用下一个处理者继续处理
+
+Adaptor-》engine->host->context->wrapper->servlet
+每个 Context 容器负责创建和维护一个 WebAppClassLoader 加载器实例
+一个类加载器 SharedClassLoader，作为 WebAppClassLoader 的父加载器，专门来加载
+Web 应用之间共享的类。如果 WebAppClassLoader 自己没有加载到某个类，就会委托父加载器
+CatalinaClassloader，专门来加载 Tomcat 自身的类
+CommonClassLoader 能加载的类都可以被 CatalinaClassLoader 和
+SharedClassLoader 使用，而 CatalinaClassLoader 和 SharedClassLoader 能加载的类则与对方相互
+隔离。WebAppClassLoader 可以使用 SharedClassLoader 加载到的类，但各个 WebAppClassLoader
+实例之间相互隔离
+
+Digester 解析xml文件
+Tomcat 的 Connector 有三种运行模式 bio、nio、apr
+
+
+
+spring 源码
+找水==》取水
+找水 （xml/注解/代码） 处理成map 包装bean的基本信息用于后面创建bean使用
+1 创建bean的方式有哪些
+1）、包扫描+组件标注注解（@Controller/@Service/@Repository/@Component）[自己写的类]
+2）、@Bean[导入的第三方包里面的组件]
+3）、@Import[快速给容器中导入一个组件]
+		1）、@Import(要导入到容器中的组件)；容器中就会自动注册这个组件，id默认是全类名
+		2）、ImportSelector:返回需要导入的组件的全类名数组；
+		3）、ImportBeanDefinitionRegistrar:手动注册bean到容器中
+4）、使用Spring提供的 FactoryBean（工厂Bean）;
+		1）、默认获取到的是工厂bean调用getObject创建的对象
+		2）、要获取工厂Bean本身，我们需要给id前面加一个&
+			&colorFactoryBean
+取水
+1 beanFactory getbean()
+  2 abstractBeanFactory dogetBean()
+      getSingleton (三级缓存 取一级一级向下找 存 一级一级向上)
+	  如果有 可以再取会判断一下是否继承factoryBean 通过自定义处理bean实现
+      如果无  进入createBean（）; （前面会判断一下depengon 依赖bean）
+	     3abstractAutowairecapbleBeanFactory  createBean
+		    	// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			    Object bean = resolveBeforeInstantiation(beanName, mbdToUse); 处理aop代理生成代理对象
+				   InstantiationAwareBeanPostProcessor postProcessBeforeInstantiation 方法
+				   如果生成代理对象 处理 BeanPostProcessor postProcessAfterInitialization
+				   返回
+				如果非代理
+				   进入 createBeanInstance 判断是否有orrervide 也就是接口走java代理 非接口走cglib代理
+				这个时候有了对象 是否提前暴露 是的话塞到三级缓存（解决spring的循环依赖）
+				开始初始化bean initializeBean
+				   1 BeanNameAware BeanFactoryAware
+				   2 BeanPostProcessor postProcessBeforeInitialization
+				   3 invokeInitMethods afterPropertiesSet
+				   4 BeanPostProcessor postProcessAfterInitialization
+				最后 registerDisposableBeanIfNecessary 放到容器里面  
+				   
+Spring AOP
+ * AOP：【动态代理】
+ * 		指在程序运行期间动态的将某段代码切入到指定方法指定位置进行运行的编程方式；
+ * 
+ * 1、导入aop模块；Spring AOP：(spring-aspects)
+ * 2、定义一个业务逻辑类（MathCalculator）；在业务逻辑运行的时候将日志进行打印（方法之前、方法运行结束、方法出现异常，xxx）
+ * 3、定义一个日志切面类（LogAspects）：切面类里面的方法需要动态感知MathCalculator.div运行到哪里然后执行；
+ * 		通知方法：
+ * 			前置通知(@Before)：logStart：在目标方法(div)运行之前运行
+ * 			后置通知(@After)：logEnd：在目标方法(div)运行结束之后运行（无论方法正常结束还是异常结束）
+ * 			返回通知(@AfterReturning)：logReturn：在目标方法(div)正常返回之后运行
+ * 			异常通知(@AfterThrowing)：logException：在目标方法(div)出现异常以后运行
+ * 			环绕通知(@Around)：动态代理，手动推进目标方法运行（joinPoint.procced()）
+ * 4、给切面类的目标方法标注何时何地运行（通知注解）；
+ * 5、将切面类和业务逻辑类（目标方法所在类）都加入到容器中;
+ * 6、必须告诉Spring哪个类是切面类(给切面类上加一个注解：@Aspect)
+ * [7]、给配置类中加 @EnableAspectJAutoProxy 【开启基于注解的aop模式】
+ * 		在Spring中很多的 @EnableXXX;
+ * 
+ * 三步：
+ * 	1）、将业务逻辑组件和切面类都加入到容器中；告诉Spring哪个是切面类（@Aspect）
+ * 	2）、在切面类上的每一个通知方法上标注通知注解，告诉Spring何时何地运行（切入点表达式）
+ *  3）、开启基于注解的aop模式；@EnableAspectJAutoProxy
+ *  
+ * AOP原理：【看给容器中注册了什么组件，这个组件什么时候工作，这个组件的功能是什么？】
+ * 		@EnableAspectJAutoProxy；
+ * 1、@EnableAspectJAutoProxy是什么？
+ * 		@Import(AspectJAutoProxyRegistrar.class)：给容器中导入AspectJAutoProxyRegistrar
+ * 			利用AspectJAutoProxyRegistrar自定义给容器中注册bean；BeanDefinetion
+ * 			internalAutoProxyCreator=AnnotationAwareAspectJAutoProxyCreator
+ * 
+ * 		给容器中注册一个AnnotationAwareAspectJAutoProxyCreator；
+ * 
+ * 2、 AnnotationAwareAspectJAutoProxyCreator：
+ * 		AnnotationAwareAspectJAutoProxyCreator
+ * 			->AspectJAwareAdvisorAutoProxyCreator
+ * 				->AbstractAdvisorAutoProxyCreator
+ * 					->AbstractAutoProxyCreator
+ * 							implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware
+ * 						关注后置处理器（在bean初始化完成前后做事情）、自动装配BeanFactory
+ * 
+ * AbstractAutoProxyCreator.setBeanFactory()
+ * AbstractAutoProxyCreator.有后置处理器的逻辑；
+ * 
+ * AbstractAdvisorAutoProxyCreator.setBeanFactory()-》initBeanFactory()
+ * 
+ * AnnotationAwareAspectJAutoProxyCreator.initBeanFactory()
+ *
+ *
+ * 流程：
+ * 		1）、传入配置类，创建ioc容器
+ * 		2）、注册配置类，调用refresh（）刷新容器；
+ * 		3）、registerBeanPostProcessors(beanFactory);注册bean的后置处理器来方便拦截bean的创建；
+ * 			1）、先获取ioc容器已经定义了的需要创建对象的所有BeanPostProcessor
+ * 			2）、给容器中加别的BeanPostProcessor
+ * 			3）、优先注册实现了PriorityOrdered接口的BeanPostProcessor；
+ * 			4）、再给容器中注册实现了Ordered接口的BeanPostProcessor；
+ * 			5）、注册没实现优先级接口的BeanPostProcessor；
+ * 			6）、注册BeanPostProcessor，实际上就是创建BeanPostProcessor对象，保存在容器中；
+ * 				创建internalAutoProxyCreator的BeanPostProcessor【AnnotationAwareAspectJAutoProxyCreator】
+ * 				1）、创建Bean的实例
+ * 				2）、populateBean；给bean的各种属性赋值
+ * 				3）、initializeBean：初始化bean；
+ * 						1）、invokeAwareMethods()：处理Aware接口的方法回调
+ * 						2）、applyBeanPostProcessorsBeforeInitialization()：应用后置处理器的postProcessBeforeInitialization（）
+ * 						3）、invokeInitMethods()；执行自定义的初始化方法
+ * 						4）、applyBeanPostProcessorsAfterInitialization()；执行后置处理器的postProcessAfterInitialization（）；
+ * 				4）、BeanPostProcessor(AnnotationAwareAspectJAutoProxyCreator)创建成功；--》aspectJAdvisorsBuilder
+ * 			7）、把BeanPostProcessor注册到BeanFactory中；
+ * 				beanFactory.addBeanPostProcessor(postProcessor);
+ * =======以上是创建和注册AnnotationAwareAspectJAutoProxyCreator的过程========
+ * 
+ * 			AnnotationAwareAspectJAutoProxyCreator => InstantiationAwareBeanPostProcessor
+ * 		4）、finishBeanFactoryInitialization(beanFactory);完成BeanFactory初始化工作；创建剩下的单实例bean
+ * 			1）、遍历获取容器中所有的Bean，依次创建对象getBean(beanName);
+ * 				getBean->doGetBean()->getSingleton()->
+ * 			2）、创建bean
+ * 				【AnnotationAwareAspectJAutoProxyCreator在所有bean创建之前会有一个拦截，InstantiationAwareBeanPostProcessor，会调用postProcessBeforeInstantiation()】
+ * 				1）、先从缓存中获取当前bean，如果能获取到，说明bean是之前被创建过的，直接使用，否则再创建；
+ * 					只要创建好的Bean都会被缓存起来
+ * 				2）、createBean（）;创建bean；
+ * 					AnnotationAwareAspectJAutoProxyCreator 会在任何bean创建之前先尝试返回bean的实例
+ * 					【BeanPostProcessor是在Bean对象创建完成初始化前后调用的】
+ * 					【InstantiationAwareBeanPostProcessor是在创建Bean实例之前先尝试用后置处理器返回对象的】
+ * 					1）、resolveBeforeInstantiation(beanName, mbdToUse);解析BeforeInstantiation
+ * 						希望后置处理器在此能返回一个代理对象；如果能返回代理对象就使用，如果不能就继续
+ * 						1）、后置处理器先尝试返回对象；
+ * 							bean = applyBeanPostProcessorsBeforeInstantiation（）：
+ * 								拿到所有后置处理器，如果是InstantiationAwareBeanPostProcessor;
+ * 								就执行postProcessBeforeInstantiation
+ * 							if (bean != null) {
+								bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+							}
+ * 
+ * 					2）、doCreateBean(beanName, mbdToUse, args);真正的去创建一个bean实例；和3.6流程一样；
+ * 					3）、
+ * 			
+ * 		
+ * AnnotationAwareAspectJAutoProxyCreator【InstantiationAwareBeanPostProcessor】	的作用：
+ * 1）、每一个bean创建之前，调用postProcessBeforeInstantiation()；
+ * 		关心MathCalculator和LogAspect的创建
+ * 		1）、判断当前bean是否在advisedBeans中（保存了所有需要增强bean）
+ * 		2）、判断当前bean是否是基础类型的Advice、Pointcut、Advisor、AopInfrastructureBean，
+ * 			或者是否是切面（@Aspect）
+ * 		3）、是否需要跳过
+ * 			1）、获取候选的增强器（切面里面的通知方法）【List<Advisor> candidateAdvisors】
+ * 				每一个封装的通知方法的增强器是 InstantiationModelAwarePointcutAdvisor；
+ * 				判断每一个增强器是否是 AspectJPointcutAdvisor 类型的；返回true
+ * 			2）、永远返回false
+ * 
+ * 2）、创建对象
+ * postProcessAfterInitialization；
+ * 		return wrapIfNecessary(bean, beanName, cacheKey);//包装如果需要的情况下
+ * 		1）、获取当前bean的所有增强器（通知方法）  Object[]  specificInterceptors
+ * 			1、找到候选的所有的增强器（找哪些通知方法是需要切入当前bean方法的）
+ * 			2、获取到能在bean使用的增强器。
+ * 			3、给增强器排序
+ * 		2）、保存当前bean在advisedBeans中；
+ * 		3）、如果当前bean需要增强，创建当前bean的代理对象；
+ * 			1）、获取所有增强器（通知方法）
+ * 			2）、保存到proxyFactory
+ * 			3）、创建代理对象：Spring自动决定
+ * 				JdkDynamicAopProxy(config);jdk动态代理；
+ * 				ObjenesisCglibAopProxy(config);cglib的动态代理；
+ * 		4）、给容器中返回当前组件使用cglib增强了的代理对象；
+ * 		5）、以后容器中获取到的就是这个组件的代理对象，执行目标方法的时候，代理对象就会执行通知方法的流程；
+ * 		
+ * 	
+ * 	3）、目标方法执行	；
+ * 		容器中保存了组件的代理对象（cglib增强后的对象），这个对象里面保存了详细信息（比如增强器，目标对象，xxx）；
+ * 		1）、CglibAopProxy.intercept();拦截目标方法的执行
+ * 		2）、根据ProxyFactory对象获取将要执行的目标方法拦截器链；
+ * 			List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+ * 			1）、List<Object> interceptorList保存所有拦截器 5
+ * 				一个默认的ExposeInvocationInterceptor 和 4个增强器；
+ * 			2）、遍历所有的增强器，将其转为Interceptor；
+ * 				registry.getInterceptors(advisor);
+ * 			3）、将增强器转为List<MethodInterceptor>；
+ * 				如果是MethodInterceptor，直接加入到集合中
+ * 				如果不是，使用AdvisorAdapter将增强器转为MethodInterceptor；
+ * 				转换完成返回MethodInterceptor数组；
+ * 
+ * 		3）、如果没有拦截器链，直接执行目标方法;
+ * 			拦截器链（每一个通知方法又被包装为方法拦截器，利用MethodInterceptor机制）
+ * 		4）、如果有拦截器链，把需要执行的目标对象，目标方法，
+ * 			拦截器链等信息传入创建一个 CglibMethodInvocation 对象，
+ * 			并调用 Object retVal =  mi.proceed();
+ * 		5）、拦截器链的触发过程;
+ * 			1)、如果没有拦截器执行执行目标方法，或者拦截器的索引和拦截器数组-1大小一样（指定到了最后一个拦截器）执行目标方法；
+ * 			2)、链式获取每一个拦截器，拦截器执行invoke方法，每一个拦截器等待下一个拦截器执行完成返回以后再来执行；
+ * 				拦截器链的机制，保证通知方法与目标方法的执行顺序；
+ * 		
+ * 	总结：
+ * 		1）、  @EnableAspectJAutoProxy 开启AOP功能
+ * 		2）、 @EnableAspectJAutoProxy 会给容器中注册一个组件 AnnotationAwareAspectJAutoProxyCreator
+ * 		3）、AnnotationAwareAspectJAutoProxyCreator是一个后置处理器；
+ * 		4）、容器的创建流程：
+ * 			1）、registerBeanPostProcessors（）注册后置处理器；创建AnnotationAwareAspectJAutoProxyCreator对象
+ * 			2）、finishBeanFactoryInitialization（）初始化剩下的单实例bean
+ * 				1）、创建业务逻辑组件和切面组件
+ * 				2）、AnnotationAwareAspectJAutoProxyCreator拦截组件的创建过程
+ * 				3）、组件创建完之后，判断组件是否需要增强
+ * 					是：切面的通知方法，包装成增强器（Advisor）;给业务逻辑组件创建一个代理对象（cglib）；
+ * 		5）、执行目标方法：
+ * 			1）、代理对象执行目标方法
+ * 			2）、CglibAopProxy.intercept()；
+ * 				1）、得到目标方法的拦截器链（增强器包装成拦截器MethodInterceptor）
+ * 				2）、利用拦截器的链式机制，依次进入每一个拦截器进行执行；
+ * 				3）、效果：
+ * 					正常执行：前置通知-》目标方法-》后置通知-》返回通知
+ * 					出现异常：前置通知-》目标方法-》后置通知-》异常通知
+Sring 事务 
+  ReactiveTransactionManager（反应式事务管理器）
+  PlatformTransactionManager（平台事务管理器 子类（DatasourceTransferManger JtaDatasoutceTranctionMange HibertelateTranactionManger 等））
+  TransactionInterceptor invoke===》invokeWithinTransaction==》（try {invoke} catch{collback} commit()） 
+  TransactionInfo 事务消息（oldTransactionInfo 事务状态 事务连接（connection）事务管理器）
+  
+  事务传播行为 AbstractPlatformTransactionManager getTransaction 判断事务传播规则 返回事务
+  七种
+  0 PROPAGATION_REQUIRED（需要） 	如果当前没有事务，就新建一个事务，如果已经存在一个事务中，加入到这个事务中。这是最常见的选择。
+  1 PROPAGATION_SUPPORTS（支持）	支持当前事务，如果当前没有事务，就以非事务方式执行。
+  2 PROPAGATION_MANDATORY（强制）	使用当前的事务，如果当前没有事务，就抛出异常。
+  3 PROPAGATION_REQUIRES_NEW（要新的）	新建事务，如果当前存在事务，把当前事务挂起。
+  4 PROPAGATION_NOT_SUPPORTED（不支持）	以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。
+  5 PROPAGATION_NEVER（不支持 切抛异常）	以非事务方式执行，如果当前存在事务，则抛出异常。
+  6 PROPAGATION_NESTED（嵌套）	如果当前存在事务，则在嵌套事务内执行。如果当前没有事务，则执行与 PROPAGATION_REQUIRED 类似的操作
+   
+SpringMVC
+			
+
+			
+				   
+ redis
+  定期通过异步操作把数据库数据flush到硬盘上进行保存
+  1. RDB持久化：将Reids在内存中的数据定时dump到磁盘上的rdb文件
+  2. AOF（Append Only File）持久化：将Redis的操作日志以追加的方式写入文件，通过操作还原数据
+淘汰策略  
+1.noeviction:返回错误当内存限制达到，并且客户端尝试执行会让更多内存被使用的命令。 默认
+2.allkeys-lru: 尝试回收最少使用的键（LRU），使得新添加的数据有空间存放。
+3.volatile-lru: 尝试回收最少使用的键（LRU），但仅限于在过期集合的键,使得新添加的数据有空间存
+放。
+4.allkeys-random: 回收随机的键使得新添加的数据有空间存放。
+5.volatile-random: 回收随机的键使得新添加的数据有空间存放，但仅限于在过期集合的键。
+6.volatile-ttl: 回收在过期集合的键，并且优先回收存活时间（TTL）较短的键,使得新添加的数据有空间存放。
+
+先更新数据库，再更新缓存  会导致脏读 （A更新数据库 然后修改缓存 C直接读取A的修改缓存数据 B进行的数据库修改）
+先删除缓存，再更新数据库  会导致脏读 A删除数据还未提交 B读取发现没有数据  直接获取数据库
+先更新数据库，再删除缓存（推荐） （A更新了数据库 还没有删除redis C获取的是老数据）
+
+系统在某个时刻访问量剧增（热点新闻），造成数据库压力剧增甚至崩溃，怎么办？
+什么是缓存雪崩、缓存穿透和缓存击穿，会造成什么问题，如何解决？
+什么是大Key和热Key，会造成什么问题，如何解决？
+如何保证 Redis 中的数据都是热点数据？
+缓存和数据库数据是不一致时，会造成什么问题，如何解决？
+什么是数据并发竞争，会造成什么问题，如何解决？
+单线程的Redis为什么这么快？
+Redis哨兵和集群的原理及选择？
+在多机Redis使用时，如何保证主从服务器的数据一致性？
+
+数据特点：
+固定数据，一次性读取
+方案：
+在服务器开启时一次性初始化到服务器本地缓存
+采用Guava Cache，Guava Cache用于存储频繁使用的少量数据，支持高并发访问
+也可以使用JDK的CurrentHashMap，需要自行实现
+
+数据特点：
+频繁变化，不必时时同步
+但一定要有数据，不能为空
+方案：
+数据从服务层读取（dubbo），然后放到本地缓存中（Guava），如果出现超时或读取为空，则返回原
+来本地缓存的数据。
+注意：不同的客户端看到的数据有可能不一样
+
+数据结构 
+String setnx（锁 用于分布式锁） incr（递增 用于乐观锁）
+List lpush lpop
+列表有序可以作为栈和队列使用
+Set sadd srem spop（随机 并删除） srandmember（随机 不删除）
+适用于不能重复的且不需要顺序的数据结构
+比如：关注的用户，还可以通过spop进行随机抽奖
+Sortedset zadd zrem (会有一个权重分数)
+由于可以按照分值排序，所以适用于各种排行榜。比如：点击排行榜、销量排行榜、关注排行榜等
+Hash hset hget
+
+
+bitmap是进行位操作的通过一个bit位来表示某个元素对应的值或者状态,其中的key就是对应元素本身
+
+stream是Redis5.0后新增的数据结构，用于可持久化的消息队列
+xadd xread
+
+
+key-->string
+value-->redisObject
+typedef struct redisDb { =============redis 数据库结构
+ int id; //id是数据库序号，为0-15（默认Redis有16个数据库） 
+ long avg_ttl; //存储的数据库对象的平均ttl（time to live），用于统计
+ dict *dict; //存储数据库所有的key-value
+ dict *expires; //存储key的过期时间
+ dict *blocking_keys;//blpop 存储阻塞key和客户端对象 
+ dict *ready_keys;//阻塞后push 响应阻塞客户端 存储阻塞后push的key和客户端对象 
+ dict *watched_keys;//存储watch监控的的key和客户端对象
+
+typedef struct redisObject { ==========redis val数据结构
+   unsigned type:4;//类型 五种对象类型 
+   unsigned encoding:4;//编码  根据不同的使用场景来为对象设置不同的编码，大大提高了 Redis 的灵活性和效率
+   void *ptr;//指向底层实现数据结构的指针  
+   int refcount;//引用计数   主要在于对象的引用计数和内存回收
+   unsigned lru:LRU_BITS; //LRU_BITS为24bit 记录最后一次被命令程序访问的时间
+   
+SDS的主要应用在：存储字符串和整型数据、存储key、AOF缓冲区和用户输入缓冲   
+跳跃表是有序集合（sorted-set）的底层实现
+数组：用来存储数据的容器
+Hash（散列），作用是把任意长度的输入通过散列算法转换成固定类型、固定长度的散列值。
+quicklist是一个双向链表，链表中的每个节点时一个ziplist结构
+
+
+集群通信
+连接通过心跳机制检测（ping-pong） ack应答
+serverCron 时间事件的最主要的应用是在redis服务器需要对自身的资源与配置进行定期的调整 (统计 清除过期值 关闭清理连接 定时与集群通信)
+默认每秒执行10次  hz 100
+RDB和AOF 以及混合
+
+RDB 默认 快照方式
+  1. 符合自定义配置的快照规则 
+  2. 执行save或者bgsave命令
+  3. 执行flushall命令
+  4. 执行主从复制操作 (第一次)
+1. Redis父进程首先判断：当前是否在执行save，或bgsave/bgrewriteaof（aof文件重写命令）的子
+进程，如果在执行则bgsave命令直接返回。
+2. 父进程执行fork（调用OS函数复制主进程）操作创建子进程，这个过程中父进程是阻塞的，Redis
+不能执行来自客户端的任何命令。
+3. 父进程fork后，bgsave命令返回”Background saving started”信息并不再阻塞父进程，并可以响
+应其他命令。
+4. 子进程创建RDB文件，根据父进程内存快照生成临时快照文件，完成后对原有文件进行原子替换。
+（RDB始终完整）
+5. 子进程发送信号给父进程表示完成，父进程更新统计信息。
+6. 父进程fork子进程后，继续工作。  
+优点 
+  RDB是二进制压缩文件，占用空间小，便于传输（传给slaver）
+  主进程fork子进程，可以最大化Redis性能，主进程不能太大，复制过程中主进程阻塞
+缺点
+  不保证数据完整性，会丢失最后一次快照以后更改的所有数据
+ 
+AOF
+  Redis 将所有对数据库进行过写入的命令（及其参数）（RESP）记录到 AOF 文件  
+  appendonly yes
+AOF文件中存储的是redis的命令，同步命令到 AOF 文件的整个过程可以分为三个阶段：
+1 命令传播：Redis 将执行完的命令、命令的参数、命令的参数个数等信息发送到 AOF 程序中。
+2 缓存追加：AOF 程序根据接收到的命令数据，将命令转换为网络通讯协议的格式，然后将协议内容追加
+到服务器的 AOF 缓存中。
+3 文件写入和保存：AOF 缓存中的内容被写入到 AOF 文件末尾，如果设定的 AOF 保存条件被满足的话，
+fsync 函数或者 fdatasync 函数会被调用，将写入的内容真正地保存到磁盘中。  
+
+ AOF_FSYNC_NO ：不保存 (只会在 redis关闭 或者aof功能关闭 或者 缓存写满) 会阻塞
+ AOF_FSYNC_EVERYSEC ：每一秒钟保存一次
+ AOF_FSYNC_ALWAYS ：每执行一个命令保存一次 会阻塞
+# 表示当前aof文件大小超过上一次aof文件大小的百分之多少的时候会进行重写。如果之前没有重写过，以 启动时aof文件大小为准 
+auto-aof-rewrite-percentage 100 
+# 限制允许重写最小aof文件大小，也就是文件大小小于64mb的时候，不需要进行优化 
+auto-aof-rewrite-min-size 64mb
+
+开启混合持久化  aof-use-rdb-preamble yes
+
+内存数据库 rdb+aof 数据不容易丢 
+缓存服务器 rdb 性能高 
+不建议 只使用 aof (性能差) 
+在数据还原时
+有rdb+aof 则还原aof，因为RDB会造成文件的丢失，AOF相对数据要完整。
+只有rdb，则还原rdb
+
+Redis的发布订阅机制包括三个部分，publisher，subscriber和Channel
+
+Redis的事务是通过multi、exec、discard和watch这四个命令来完成的 不支持回滚操作 连续且不被打断的
+1. 事务开始
+在RedisClient中，有属性flags，用来表示是否在事务中
+flags=REDIS_MULTI
+2. 命令入队
+RedisClient将命令存放在事务队列中
+（EXEC,DISCARD,WATCH,MULTI除外）
+3. 事务队列
+multiCmd *commands 用于存放命令
+4. 执行事务
+RedisClient向服务器端发送exec命令，RedisServer会遍历事务队列,执行队列中的命令,最后将执
+行的结果一次性返回给客户端。
+
+
+#执行时间超过多少微秒的命令请求会被记录到日志上 0 :全记录 <0 不记录 
+slowlog-log-slower-than 10000 
+#slowlog-max-len 存储慢查询日志条数 
+slowlog-max-len 128
+
+使用slowlog get 可以获得执行较慢的redis命令，针对该命令可以进行优化：
+1、尽量使用短的key，对于value有些也可精简，能使用int就int。 
+2、避免使用keys *、hgetall等全量操作。
+3、减少大key的存取，打散为小key 4、将rdb改为aof模式 
+ rdb fork 子进程 主进程阻塞 redis大幅下降 
+ 关闭持久化 ， （适合于数据量较小）
+ 改aof 命令式 
+5、想要一次添加多条数据的时候可以使用管道
+6、尽可能地使用哈希存储
+7、尽量限制下redis使用的内存大小，这样可以避免redis使用swap分区或者出现OOM错误
+
+
+Redis支持主从复制功能，可以通过 slaveof（Redis5以后改成replicaof)
+Redis 2.8以前使用SYNC命令同步复制 Redis 2.8之后采用PSYNC命令替代SYNC(全量同步和增量同步)
+
+集群 16383
+Gossip协议基本思想就是：
+一个节点周期性(每秒)随机选择一些节点，并把信息传递给这些节点。
+这些收到信息的节点接下来会做同样的事情，即把这些信息传递给其他一些随机选择的节点。
+
+缓存预热
+缓存预热就是系统启动前,提前将相关的缓存数据直接加载到缓存系统。避免在用户请求的时候,先查询
+数据库,然后再将数据缓存的问题!用户直接查询实现被预热的缓存数据。
+加载缓存思路：
+数据量不大，可以在项目启动的时候自动进行加载
+利用定时任务刷新缓存，将数据库的数据刷新到缓存中
+
+缓存穿透 
+    使用布隆过滤器。在缓存之前在加一层布隆过滤器，在查询的时候先去布隆过滤器查询 key 是否存在，如果不存在就直接返回，存在再查缓存和DB
+布隆过滤器其实就是一个位图 进行三次hash操作 如果三个都是1 才可能存在 如果一个不存在 那必然都不存在
+
+缓存雪崩（大批量）
+    key的失效期分散开 不同的key设置不同的有效期 或者设置二级缓存
+
+缓存击穿（单个）
+    用分布式锁控制访问的线程 或者不设超时时间，volatile-lru 但会造成写一致问题
+	
+数据不一致
+    先更新数据库同时删除缓存项(key)，等读的时候再填充缓存
+	
+热key
+  如何发现热key 1、预估热key，比如秒杀的商品、火爆的新闻等
+                2、在客户端进行统计，实现简单，加一行代码即可
+                3、如果是Proxy，比如Codis，可以在Proxy端收集
+                4、利用Redis自带的命令，monitor、hotkeys。但是执行缓慢（不要用）
+                5、利用基于大数据领域的流式计算技术来进行实时数据访问次数的统计，比如 Storm、SparkStreaming、Flink，这些技术都是可以的。发现热点数据后可以写到zookeeper中          
+   1、变分布式缓存为本地缓存
+   2、利用对热点数据访问的限流熔断保护措施
+bigkey	
+   redis-cli --bigkeys
+   删除大key时不要使用del,因为del是阻塞命令，删除时会影响性能。使用 lazy delete (unlink命令）
+
+
+缓存更新策略
+利用Redis的缓存淘汰策略被动更新 LRU 、LFU
+利用TTL被动更新
+在更新数据库时主动更新 （先更数据库再删缓存----延时双删）
+异步更新 定时任务 数据不保证时时一致 不穿DB
+
+
+分布式锁
+ 1 watch
+         1、利用redis的watch功能，监控这个redisKey的状态值
+         2、获取redisKey的值
+         3、创建redis事务
+         4、给这个key的值+1
+         5、然后去执行这个事务，如果key的值被修改过则回滚，key不加1 
+ 2 setNx
+     加锁 1 （使用set命令实现）--推荐 2 （使用setnx命令实现） -- 并发会产生问题 （成功设置 进程down 永久有效 别的进程就无法获得锁）
+	 解锁 1  （del命令实现） -- 并发 2 （redis+lua脚本实现）--推荐
+	 public static boolean releaseLock(String lockKey, String requestId) 
+	 { String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"; 
+	   Object result = jedis.eval(script, Collections.singletonList(lockKey), Collections.singletonList(requestId)); 
+	   if (result.equals(1L)) { return true; }return false; 
+	 }
+	 
+ 3 redisson 分布式锁
+ public class DistributedRedisLock { 
+ //从配置类中获取redisson对象 
+ private static Redisson redisson = RedissonManager.getRedisson(); 
+ private static final String LOCK_TITLE = "redisLock_"; //加锁 
+ public static boolean acquire(String lockName){ //声明key对象
+ String key = LOCK_TITLE + lockName; //获取锁对象 
+ RLock mylock = redisson.getLock(key); //加锁，并且设置锁过期时间3秒，防止死锁的产生 uuid+threadId 
+ mylock.lock(2,3,TimeUtil.SECOND); //加锁成功 
+ return true; } //锁的释放 
+ public static void release(String lockName){ //必须是和加锁时的同一个key 
+ String key = LOCK_TITLE + lockName; //获取所对象 
+ RLock mylock = redisson.getLock(key); //释放锁（解锁） 
+ mylock.unlock(); } } 
+  原理 如果该客户端面对的是一个redis cluster集群，他首先会根据hash节点选择一台机器。发送lua脚本到redis服务器上
+  KEYS[1]) ： 加锁的key
+ARGV[1] ： key的生存时间，默认为30秒
+ARGV[2] ： 加锁的客户端ID (UUID.randomUUID()） + “:” + threadId)
+  lua的作用：保证这段复杂业务逻辑执行的原子性。只要客户端1一旦加锁成功，就会启动一个watch dog看门狗，他是一个后台线程，会每隔10秒检查一
+下，如果客户端1还持有锁key，那么就会不断的延长锁key的生存时间。
+  如果执行lock.unlock()，就可以释放分布式锁，此时的业务逻辑也是非常简单的。其实说白了，就是每次都对myLock数据结构中的那个加锁次数减1。如果发现加锁次数是0了，说明这个客户端已经不再持有锁了，此时就会用：“del myLock”命令，从redis里删除这个key。然后呢，另外的客户端2就可以尝试完成加锁了
+  
+
+ 
+1redis在内存中操作，持久化只是数据的备份，正常情况下内存和硬盘不会频繁swap
+2多机主从，集群数据扩展
+3maxmemory的设置+淘汰策略
+4数据结构简单，有压缩处理，是专门设计的
+5单线程没有锁，没有多线程的切换和调度，不会死锁，没有性能消耗
+6使用I/O多路复用模型，非阻塞IO；
+7构建了多种通信模式，进一步提升性能
+8进行持久化的时候会以子进程的方式执行，主进程不阻塞
+
+Disruptor 高并发队列框架
+采用rangbuffer (闭环数组 + 伪共享（L1只能有64位 long只有8位 一般队列会有三个long  readindex count putindex 
+导致这三个都在一个缓存行L1 这样在内存屏障的时候 会频繁更新 伪共享就是填充数据 让他们不在一个高速L1行上面）)
+
+操作 1创建一个EVENT 对像
+     2创建一个factory LongEventFactory implements EventFactory<LongEvent> 
+	 3创建handler  LongEventHandler implements EventHandler<LongEvent> 
+	 4创建生产者
+	   public class LongEventProducer {
+    private final RingBuffer<LongEvent> ringBuffer;
+
+    public LongEventProducer(RingBuffer<LongEvent> ringBuffer) {
+        this.ringBuffer = ringBuffer;
+    }
+
+    public void onData(ByteBuffer bb) {
+        long sequence = ringBuffer.next();  // Grab the next sequence
+        try {
+            LongEvent event = ringBuffer.get(sequence); // Get the entry in the Disruptor
+            // for the sequence
+            event.set(bb.getLong(0));  // Fill with data
+        } finally {
+            ringBuffer.publish(sequence);
+        }
+    }
+}
+     5 创建消费者 
+	    Disruptor<LongEvent> disruptor = new Disruptor<>(factory, bufferSize, executor);
+        // Connect the handler
+        disruptor.handleEventsWith(new LongEventHandler());
+        // Start the Disruptor, starts all threads running
+        disruptor.start();
+
+
+information_schema.optimizer_trace就可以知道MySQL是如何执行SQL的
+1 最左原则 要遵守最左前缀法则。指的是查询从索引的最左前列开始，并且不跳过索引中的列
+2 不要在索引列上进行运算操作， 索引将失效
+3 字符串不加单引号，造成索引失效 （值变换）
+4 尽量使用覆盖索引，避免select * （回表）
+5 用or分割开的条件， 如果or前的条件中的列有索引，而后面的列中没有索引，那么涉及的索引都不会被用到
+6 以%开头的Like模糊查询，索引失效
+7 is NULL ， is NOT NULL 有时索引失效
+8 in 走索引， not in 索引失效。
+
+
+
+ Canal
+        <dependency>
+            <groupId>com.alibaba.otter</groupId>
+            <artifactId>canal.client</artifactId>
+            <version>1.0.24</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>spring</artifactId>
+                    <groupId>org.springframework</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+ 1 配置canal
+ 
+   private CanalConnector canalConnector;
+    @Value("${canal.host}")
+    private String canalHost;
+    @Value("${canal.port}")
+    private String canalPort;
+    @Value("${canal.destination}")
+    private String canalDestination;
+    @Value("${canal.username}")
+    private String canalUsername;
+    @Value("${canal.password}")
+    private String canalPassword;
+
+    @Bean
+    public CanalConnector getCanalConnector() {
+        canalConnector = CanalConnectors.newClusterConnector(Lists.newArrayList(new InetSocketAddress(canalHost, Integer.valueOf(canalPort))), canalDestination, canalUsername, canalPassword);
+        canalConnector.connect();
+        // 指定filter，格式 {database}.{table}，这里不做过滤，过滤操作留给用户
+        canalConnector.subscribe();
+        // 回滚寻找上次中断的位置
+        canalConnector.rollback();
+        logger.info("canal客户端启动成功");
+        return canalConnector;
+    }
+	
+	
+	2 获取数据
+	    @Resource
+    private CanalConnector canalConnector;
+
+    @Scheduled(fixedDelay = 100)
+    @Override
+    public void run() {
+        try {
+            int batchSize = 1000;
+//            Message message = connector.get(batchSize);
+            Message message = canalConnector.getWithoutAck(batchSize);
+            long batchId = message.getId();
+            logger.debug("scheduled_batchId=" + batchId);
+            try {
+                List<Entry> entries = message.getEntries();
+                if (batchId != -1 && entries.size() > 0) {
+                    entries.forEach(entry -> {
+                        if (entry.getEntryType() == EntryType.ROWDATA) {
+                            publishCanalEvent(entry);
+                        }
+                    });
+                }
+                canalConnector.ack(batchId);
+            } catch (Exception e) {
+                logger.error("发送监听事件失败！batchId回滚,batchId=" + batchId, e);
+                canalConnector.rollback(batchId);
+            }
+        } catch (Exception e) {
+            logger.error("canal_scheduled异常！", e);
+        }
+    }
+	
+	
+	
+CAP 
+第一版
+对于一个分布式计算系统，不可能同时满足一致性（Consistence）、可用性（Availability）、分区容错性（Partition Tolerance）三个设计约束
+第二版
+在一个分布式系统（指互相连接并共享数据的节点的集合）中，当涉及读写操作时，只能保证一致性（Consistence）、可用性（Availability）、分区容错性（Partition Tolerance）三者中的两个，另外一个必须被牺牲
+
+
+C 一致性
+第一版 所有节点在同一时刻都能看到相同的数据。
+第二版 对某个指定的客户端来说，读操作保证能够返回最新的写操作结果。
+第一版的关键词是see，第二版的关键词是read。
+
+A 可用性
+第一版 每个请求都能得到成功或者失败的响应。
+第二版 非故障的节点在合理的时间内返回合理的响应（不是错误和超时的响应）。
+第一版是every request，第二版强调了A non-failing node。
+
+P 分区容错性
+第一版 出现消息丢失或者分区错误时系统能够继续运行。
+第二版 当出现网络分区后，系统能够继续“履行职责”。
+第一版用的是work，第二版用的是function。
+
+1 CAP关注的粒度是数据，而不是整个系统
+2 CAP是忽略网络延迟的。
+3 要求架构设计的时候既要考虑分区发生时选择CP还是AP，也要考虑分区没有发生时如何保证CA。
+4 需要为分区恢复后做准备
+ACID是数据库事务完整性的理论，CAP是分布式系统设计理论，BASE是CAP理论中AP方案的延伸。
+
+
+mybatis
+官方文档 https://mybatis.org/mybatis-3/zh/
+配置
+defaultExecutorType	配置默认的执行器。
+  SIMPLE 就是普通的执行器；
+  REUSE 执行器会重用预处理语句（PreparedStatement）； 
+  BATCH 执行器不仅重用语句还会执行批量更新。
+cacheEnabled 二级缓存 默认true 一级缓存不能取消
+   LRU – 最近最少使用：移除最长时间不被使用的对象。
+   FIFO – 先进先出：按对象进入缓存的顺序来移除它们。
+   SOFT – 软引用：基于垃圾回收器状态和软引用规则移除对象。
+   WEAK – 弱引用：更积极地基于垃圾收集器状态和弱引用规则移除对象
+mapper.xml cache 启动二级缓存
+查看所有mapper
+log4j.logger.org.mybatis.example=TRACE
+查看单个 XML 记录日志：
+log4j.logger.org.mybatis.example.BlogMapper=TRACE
+查询单个语句
+log4j.logger.org.mybatis.example.BlogMapper.selectBlog=TRACE
+
+ResultType 映射对象 
+ResultMap 可以自定义处理
+resultType	期望从这条语句中返回结果的类全限定名或别名。 注意，如果返回的是集合，那应该设置为集合包含的类型，而不是集合本身的类型。 
+resultMap	对外部 resultMap 的命名引用。结果映射是 MyBatis 最强大的特性，如果你对其理解透彻，许多复杂的映射问题都能迎刃而解。
+resultType 和 resultMap 之间只能同时使用一个。
+
+Configuration  配置文件
+SqlSessionFactory sqlsession工厂
+SqlSession 具体会话
+MapperProxyFactory mapper对象代理工厂
+MapperProxy 具体代理
+MapperMethod （具体执行）
+MappedStatement  映射配置文件中定义的 SQL 节点 存放Configuration中
+BoundSql 封装已解析完成的SQL语句和解析出来参数
+SqlSource 生成具体BoundSql
+Executor 具体操作数据库 实现是StatementHandler操作 （ParameterHandler ResultSetHandler协助 一个组装sql 一个解释结果） 
+StatementHandler  封装了JDBC Statement操作
+ 1 sql拼装 ParameterHandler  对象和配置sql语句组装成sql
+ 2 结果拼装 ResultSetHandler  处理返回结果
+
+流程 创建配置Configuration 生成SqlSessionFactory 然后生成会话级SqlSession 操作Executor 数据处理StatementHandler（ParameterHandler参数处理ResultSetHandlerf返回结果处理） 
+创建会话 通过DefaultSqlSessionFactory 通过configuration 创建DefaultSession
+   sqlSession管理（DefaultSqlSessionFactory每次都创建 SqlSessionManager 通过ThreadLocal管理 同一线上 多次调用）
+创建代理对象 通过MapperRegistry 获取MapperProxyFactory生成 MapperMethod
+  获取mapper对象 通过 MapperProxyFactory newInstance 具体代理对象 MapperProxy 
+    具体操作 MapperMethod execute  SqlCommand 记录了 SQL 语句的名称和类型 MethodSignature Mapper接口中对应方法的信息
+    具体操作 MapperMethod 调用 Executor （StatementHandler ParameterHandler ResultSetHandler）
+	        操作 insert update delete select 通过 Executor（
+			       BaseExecutor  下面有（ReuseExecutor 提供 Statement 重用的功能 （prepareStatement 准备这个statementHandler的时候 就使用缓存） 
+				                         BatchExecutor 批处理
+										 SimpleExecutor 默认）
+				   CachingExecutor 二级缓存）
+				     具体操作数据库 
+					        第一步 获取 StatementHandler
+							第二步 prepareStatement 拼装sql (ParameterHandler)
+			                第三步 ResultSetHandler 处理 Statement返回数据的数据 
+							
+ErrorContext 包装出错的sql日志
+一级缓存 sqlsession级别 BaseExecutor中的localCache
+二级缓存 sqlsessionFactory级别 CachingExecutor.TransactionalCacheManager
+ 
