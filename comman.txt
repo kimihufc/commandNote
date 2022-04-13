@@ -182,6 +182,13 @@ SHOW  TABLE STATUS
 SELECT * FROM information_schema.innodb_trx WHERE TIME_TO_SEC(timediff(now(), trx_started)) > 1
 
 
+默认关闭。开启后，会在后台保存最近 15 次的运行结果，然后通过 Show Profile 命令查看结果。
+-- 开启
+SET profiling = ON;
+-- 查看
+SHOW VARIABLES LIKE 'profiling%';
+SHOW profile CPU, BLOCK IO FOR QUERY 4;
+
    
    mysql 安装 https://blog.csdn.net/weixin_38003389/article/details/90696337
    1下载 wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-linux-glibc2.12-x86_64.tar.gz
