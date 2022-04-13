@@ -23,6 +23,7 @@ http.request.uri contains “/dll/test.htm?“
 
 目标机器 ssh-keygen -t rsa
 本机器  ssh-copy-id -i ~/id_rsa.pub root@172.23.60.4
+其实就是 将本机的id_rsa.pub的内容 存放到需要ssh的机器的authorized_keys上面（追加） 手动copy也行
  du -h --max-depth=1 ./  查看目录大小
  /sbin/iptables -I INPUT -p tcp --dport 80 -j ACCEPT
  
@@ -140,6 +141,12 @@ show variables like 'max_connections';
 数据库sql长度大小
 max_allowed_packet 
 
+SHOW VARIABLES LIKE '%profiles%'
+SET profiling=1
+SELECT * FROM invoice_master_0 WHERE qyid = 892441878253932545 
+SHOW PROFILES;
+SHOW PROFILE FOR QUERY 4
+
 
 
 
@@ -175,19 +182,6 @@ SHOW  TABLE STATUS
 SELECT * FROM information_schema.innodb_trx WHERE TIME_TO_SEC(timediff(now(), trx_started)) > 1
 
 
-
-  1  2021-04-14 15:03:48
-    2  2021-04-14 15:03:51 cd /lost+found/
-    3  2021-04-14 15:04:10 docker ps | grep account
-    4  2021-04-14 15:04:33 cd /var/lib/kubelet/pods
-    5  2021-04-14 15:04:50 cd fe0a86f4-05b1-4d12-92c2-1daa4035cf7f/
-    6  2021-04-14 15:04:52 ls
-    7  2021-04-14 15:04:59 cd volumes/kubernetes.io~empty-dir/
-    8  2021-04-14 15:05:04 ls
-    9  2021-04-14 15:05:12 cd logs/
-   10  2021-04-14 15:05:14 ls
-   11  2021-04-14 15:06:29 docker ps|grep qplfg
-   12  2021-04-14 15:07:14 history
    
    mysql 安装 https://blog.csdn.net/weixin_38003389/article/details/90696337
    1下载 wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-linux-glibc2.12-x86_64.tar.gz
@@ -258,7 +252,7 @@ mysql>flush privileges;   #刷新权限
   2 增量恢复点数据 /usr/local/mysql5-7/bin/mysqlbinlog --start-position=1585910  --stop-position=1585995  mysql-bin.000317|/usr/local/mysql5-7/bin/mysql -uroot -p123456
 
    
-   
+   https://mirrors.tuna.tsinghua.edu.cn/apache/hadoop/common/hadoop-2.10.1/
    
 vi /etc/sysctl.conf  
 net.ipv4.tcp_syncookies = 1
@@ -267,6 +261,106 @@ net.ipv4.tcp_tw_recycle = 1
 net.ipv4.tcp_fin_timeout = 30
 生效命令 sysctl -p
 
+apt update && apt -f install ca-certificates && curl -O https://arthas.aliyun.com/arthas-boot.jar
+
 
 LR出现不平衡 先补全子树 然后进行左旋
 RL出现不平衡 先补全子树 然后进行右旋
+
+连接kubernetes集群的用户名密码都是ubuntu
+主节点的ip是172.23.220.100
+1.安装helm工具:
+	helm的下载地址：https://repo.huaweicloud.com/helm/v3.7.0/  可以在这个网页上根据系统和CPU架构选择对应的包
+	安装命令： 
+	#下载helm
+	wget https://repo.huaweicloud.com/helm/v3.7.0/helm-v3.7.0-linux-amd64.tar.gz
+	#解压缩
+	tar -zxf helm-v3.7.0-linux-amd64.tar.gz
+	#安装到系统
+	sudo cp linux-amd64/helm /usr/local/bin/
+	#配置helm自动补全
+	cp .bashrc bashrc_bak
+	helm completion bash >> .bashrc 
+	(如果是使用zsh：helm completion zsh >> .zshrc)
+2.helm添加chart包仓库：
+	helm repo add fintax-dev  https://fintax-test-harbor.yunzhangfang.com/chartrepo/fintax --username fintax --password Fintax1!
+	helm repo list
+	#chart包仓库更新命令
+	helm repo update
+	helm upgrade  fintax-assets fintax-dev/fintax-assets  --values fintax-assets-dev.yaml --devel
+	#列出仓库中所有chart包，包括开发包
+	helm search repo  --devel
+	#列出所有正式包
+	helm search repo
+配置k8s config C:\Users\kimi\.kube
+3.安装chart包示例
+     (相对路径 --values)
+	helm install fintax-account fintax-dev/fintax-account --values fintax-account-dev.yaml --devel
+	helm install fintax-application-account fintax-dev/fintax-application-account --values fintax-application-account-dev.yaml --devel
+	helm install fintax-application-company fintax-dev/fintax-application-company --values fintax-application-company-dev.yaml --devel
+	helm install fintax-application fintax-dev/fintax-application --values fintax-application-dev.yaml --devel
+	helm install fintax-application-file fintax-dev/fintax-application-file --values fintax-application-file-dev.yaml --devel
+	helm install fintax-application-fund fintax-dev/fintax-application-fund --values fintax-application-fund-dev.yaml --devel
+	helm install fintax-application-gateway fintax-dev/fintax-application-gateway --values fintax-application-gateway-dev.yaml --devel
+	helm install fintax-statistics fintax-dev/fintax-statistics --values fintax-statistics-dev.yaml --devel
+	helm install fintax-relation-query fintax-dev/fintax-relation-query --values fintax-relation-query-dev.yaml --devel
+	helm install fintax-log  fintax-dev/fintax-log  --values fintax-log-dev.yaml --devel
+	helm install fintax-message fintax-dev/fintax-message  --values fintax-message-dev.yaml --devel
+	helm install fintax-operation-report fintax-dev/fintax-operation-report  --values fintax-operation-report-dev.yaml --devel
+	helm install fintax-salary fintax-dev/fintax-salary  --values fintax-salary-dev.yaml --devel
+	helm install fintax-fund fintax-dev/fintax-fund  --values fintax-fund-dev.yaml --devel
+	helm install fintax-assets fintax-dev/fintax-assets  --values fintax-assets-dev.yaml --devel
+	helm install fintax-bookkeeping fintax-dev/fintax-bookkeeping  --values fintax-bookkeeping-dev.yaml --devel
+	helm install fintax-data-init fintax-dev/fintax-data-init  --values fintax-data-init-dev.yaml --devel
+	helm install fintax-habit fintax-dev/fintax-habit --values fintax-habit-dev.yaml --devel
+	helm install fintax-qxt fintax-dev/fintax-qxt --values fintax-qxt-dev.yaml --devel
+	helm install fintax-stock fintax-dev/fintax-stock --values fintax-stock-dev.yaml --devel
+	helm install fintax-user-point fintax-dev/fintax-user-point --values fintax-user-point-dev.yaml --devel
+	helm install upm fintax-dev/upm --values upm-dev.yaml --devel
+	helm install fintax-electronic-book fintax-dev/fintax-electronic-book --values fintax-electronic-book-dev.yaml --devel
+	helm install fintax-application-server fintax-dev/fintax-application-server --values fintax-application-server-dev.yaml --devel
+	helm install fintax-application-support fintax-dev/fintax-application-support --values fintax-application-support-dev.yaml --devel
+	helm install fintax-application-invoice fintax-dev/fintax-application-invoice --values fintax-application-invoice-dev.yaml --devel
+	helm install fintax-application-tax fintax-dev/fintax-application-tax- --values fintax-application-tax-dev.yaml --devel
+	helm install fintax-application-assets fintax-dev/fintax-application-assets --values fintax-application-assets-dev.yaml --devel
+	helm install fintax-application-hsqj fintax-dev/fintax-application-hsqj --values fintax-application-hsqj-dev.yaml --devel
+	helm install fintax-application-stock fintax-dev/fintax-application-stock --values fintax-application-stock-dev.yaml --devel
+	helm install fintax-application-salary fintax-dev/fintax-application-salary --values fintax-application-salary-dev.yaml --devel
+	
+4.列出集群中已经安装的chart
+	helm ls --all-namespaces
+5.更新应用示例
+	####注意：升级版本前，必须先使用helm repo update更新chart仓库的本地索引，必须保证values文件内容是最新
+	helm upgrade fintax-account fintax-dev/fintax-account --values fintax-account-dev.yaml --devel
+	helm upgrade fintax-application-account fintax-dev/fintax-application-account --values fintax-application-account-dev.yaml --devel
+	helm upgrade fintax-application-company fintax-dev/fintax-application-company --values fintax-application-company-dev.yaml --devel
+	helm upgrade fintax-application fintax-dev/fintax-application --values fintax-application-dev.yaml --devel
+	helm upgrade fintax-application-file fintax-dev/fintax-application-file --values fintax-application-file-dev.yaml --devel
+	helm upgrade fintax-application-fund fintax-dev/fintax-application-fund --values fintax-application-fund-dev.yaml --devel
+	helm upgrade fintax-application-gateway fintax-dev/fintax-application-gateway --values fintax-application-gateway-dev.yaml --devel
+	
+	
+	
+	
+	大数据
+	https://www.cnblogs.com/huanghanyu/p/13786804.html
+
+https://blog.csdn.net/qq_44923545/article/details/110817003
+https://blog.csdn.net/qq_43650672/article/details/116485851
+
+
+分库分表：
+https://mm.edrawsoft.cn/map.html?sharecode=6046e2fa318e34a03409333
+
+Canal：
+https://mm.edrawsoft.cn/map.html?sharecode=61545723cdfc62a57010515
+
+Otter：
+https://mm.edrawsoft.cn/map.html?sharecode=615457423561b0a61930745
+
+TiDB：
+https://mm.edrawsoft.cn/map.html?sharecode=61545778e896d3a89351704
+
+ShardingShere：
+https://mm.edrawsoft.cn/map.html?sharecode=6046e303b9c146a60364275
+https://mm.edrawsoft.cn/map.html?sharecode=61557d99746c43a81520766
